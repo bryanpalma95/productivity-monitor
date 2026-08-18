@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productivity Monitor</title>
+  <meta http-equiv="refresh" content="0; url=public/standalone.html">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #0f0f1a;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .loading {
+      text-align: center;
+    }
+    .loading i {
+      font-size: 48px;
+      color: #40c4ff;
+      display: block;
+      margin-bottom: 16px;
+    }
+    .loading p {
+      color: #888;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading">
+    <i>⏳</i>
+    <p>Cargando Productivity Monitor...</p>
+  </div>
+  <script>
+    window.location.href = 'public/standalone.html';
+  </script>
+</body>
+</html>

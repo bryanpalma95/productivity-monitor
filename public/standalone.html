@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productivity Monitor — Monitoreo de Productividad</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* ===== Standalone-specific styles ===== */
+    .storage-info {
+      background: rgba(64, 196, 255, 0.1);
+      border: 1px solid rgba(64, 196, 255, 0.3);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      color: var(--info);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .storage-info i {
+      font-size: 1.2rem;
+    }
+    
+    .storage-info strong {
+      color: #fff;
+    }
+    
+    .export-btn {
+      background: var(--card-hover);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    
+    .export-btn:hover {
+      background: var(--border);
+    }
+    
+    .data-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .data-actions button {
+      flex: 1;
+      min-width: 120px;
+    }
+    
+    .danger-zone {
+      border: 1px solid rgba(255, 82, 82, 0.3);
+      background: rgba(255, 82, 82, 0.05);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .danger-zone h4 {
+      color: var(--danger);
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    
+    .danger-zone p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+    
+    .badge-online {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(105, 240, 174, 0.15);
+      color: var(--success);
+    }
+    
+    .badge-online i {
+      font-size: 0.6rem;
+    }
+    
+    .session-item {
+      cursor: pointer;
+    }
+    
+    .session-item:hover {
+      transform: translateX(4px);
+    }
+    
+    .category-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    
+    .category-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    
+    .category-chip.meetings { background: rgba(100, 181, 246, 0.15); color: var(--blue); }
+    .category-chip.individual { background: rgba(179, 136, 255, 0.15); color: var(--purple); }
+    .category-chip.requests { background: rgba(255, 183, 77, 0.15); color: var(--orange); }
+    .category-chip.progress { background: rgba(105, 240, 174, 0.15); color: var(--green); }
+    
+    .report-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .report-tab {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    
+    .report-tab.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: #fff;
+      border-color: transparent;
+    }
+    
+    .report-tab-content {
+      display: none;
+    }
+    
+    .report-tab-content.active {
+      display: block;
+    }
+    
+    .timeline {
+      position: relative;
+      padding-left: 24px;
+    }
+    
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    
+    .timeline-item {
+      position: relative;
+      padding: 8px 0;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -20px;
+      top: 14px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid var(--bg);
+    }
+    
+    .timeline-time {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    
+    .timeline-text {
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-top: 2px;
+    }
+    
+    .timeline-source {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    
+    .timeline-source i {
+      margin-right: 4px;
+    }
+    
+    .privacy-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 15, 26, 0.95);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    
+    .privacy-overlay-content {
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .privacy-overlay-content i {
+      font-size: 60px;
+      color: var(--success);
+      display: block;
+      margin-bottom: 20px;
+    }
+    
+    .privacy-overlay-content h2 {
+      color: #fff;
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+    
+    .privacy-overlay-content p {
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+    
+    .privacy-overlay-content .btn {
+      font-size: 1rem;
+      padding: 14px 32px;
+    }
+    
+    .recording-indicator {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 82, 82, 0.9);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(255, 82, 82, 0.4);
+      animation: slideDown 0.3s ease;
+    }
+    
+    .recording-indicator .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #fff;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes slideDown {
+      from { transform: translateX(-50%) translateY(-100%); }
+      to { transform: translateX(-50%) translateY(0); }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.5); }
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .stat-box .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .stat-box .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    .stat-box .stat-icon {
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+    }
+    
+    .stat-box.blue .stat-icon { color: var(--blue); }
+    .stat-box.green .stat-icon { color: var(--green); }
+    .stat-box.purple .stat-icon { color: var(--purple); }
+    .stat-box.orange .stat-icon { color: var(--orange); }
+    
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="logo-text">
+          <h1>Productivity Monitor</h1>
+          <span class="version">v1.0.0</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          <span class="nav-icon"><i class="fas fa-home"></i></span> Dashboard
+        </button>
+        <button class="nav-item" data-view="monitor">
+          <span class="nav-icon"><i class="fas fa-video"></i></span> Monitoreo
+        </button>
+        <button class="nav-item" data-view="sessions">
+          <span class="nav-icon"><i class="fas fa-history"></i></span> Sesiones
+        </button>
+        <button class="nav-item" data-view="reports">
+          <span class="nav-icon"><i class="fas fa-file-alt"></i></span> Reportes
+        </button>
+        <button class="nav-item" data-view="search">
+          <span class="nav-icon"><i class="fas fa-search"></i></span> Buscar
+        </button>
+        <button class="nav-item" data-view="data">
+          <span class="nav-icon"><i class="fas fa-database"></i></span> Mis Datos
+        </button>
+      </nav>
+
+      <div class="privacy-toggle">
+        <div class="privacy-header">
+          <span><i class="fas fa-shield-alt"></i> Modo Privacidad</span>
+          <label class="switch">
+            <input type="checkbox" id="privacySwitch">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="privacy-hint">Pausa el monitoreo durante momentos personales</p>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-dot online"></div>
+        <span>Funcionando en tu navegador</span>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Dashboard View -->
+      <section class="view active" id="view-dashboard">
+        <div class="view-header">
+          <h2>Dashboard</h2>
+          <p>Resumen de tu actividad y productividad</p>
+        </div>
+
+        <div class="storage-info">
+          <i class="fas fa-cloud"></i>
+          <span>Los datos se guardan <strong>localmente en tu navegador</strong>. Nada se envía a servidores externos.</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box blue">
+            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+            <div class="stat-value" id="stat-duration">0h</div>
+            <div class="stat-label">Tiempo Total</div>
+          </div>
+          <div class="stat-box green">
+            <div class="stat-icon"><i class="fas fa-video"></i></div>
+            <div class="stat-value" id="stat-sessions">0</div>
+            <div class="stat-label">Sesiones</div>
+          </div>
+          <div class="stat-box purple">
+            <div class="stat-icon"><i class="fas fa-microphone"></i></div>
+            <div class="stat-value" id="stat-transcripts">0</div>
+            <div class="stat-label">Transcripciones</div>
+          </div>
+          <div class="stat-box orange">
+            <div class="stat-icon"><i class="fas fa-camera"></i></div>
+            <div class="stat-value" id="stat-screenshots">0</div>
+            <div class="stat-label">Capturas</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-bolt"></i> Inicio Rápido</h3>
+          <div class="quick-actions">
+            <button class="btn btn-primary btn-lg" onclick="switchView('monitor')">
+              <i class="fas fa-play"></i> Iniciar Monitoreo
+            </button>
+            <button class="btn btn-secondary btn-lg" onclick="switchView('reports')">
+              <i class="fas fa-file-alt"></i> Ver Reportes
+            </button>
+            <button class="btn btn-secondary btn-lg" onclick="switchView('search')">
+              <i class="fas fa-search"></i> Buscar Actividad
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-history"></i> Sesiones Recientes</h3>
+          <div id="recent-sessions" class="session-list">
+            <p class="empty-state">No hay sesiones registradas aún.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Monitor View -->
+      <section class="view" id="view-monitor">
+        <div class="view-header">
+          <h2>Monitoreo en Vivo</h2>
+          <p>Captura de pantalla y audio para registrar tu actividad</p>
+        </div>
+
+        <div class="monitor-container">
+          <div class="card monitor-card">
+            <div class="monitor-header">
+              <h3><i class="fas fa-video"></i> Captura de Pantalla</h3>
+              <div class="monitor-status" id="screenStatus">
+                <span class="status-badge idle"><i class="fas fa-circle"></i> Inactivo</span>
+              </div>
+            </div>
+            <div class="screen-preview" id="screenPreview">
+              <div class="preview-placeholder">
+                <i class="fas fa-desktop"></i>
+                <p>La captura de pantalla aparecerá aquí</p>
+              </div>
+            </div>
+            <div class="monitor-controls">
+              <button class="btn btn-primary" id="btnStartScreen" onclick="startScreenCapture()">
+                <i class="fas fa-play"></i> Compartir Pantalla
+              </button>
+              <button class="btn btn-danger" id="btnStopScreen" onclick="stopScreenCapture()" style="display:none">
+                <i class="fas fa-stop"></i> Detener
+              </button>
+            </div>
+          </div>
+
+          <div class="card monitor-card">
+            <div class="monitor-header">
+              <h3><i class="fas fa-microphone"></i> Audio y Transcripción</h3>
+              <div class="monitor-status" id="audioStatus">
+                <span class="status-badge idle"><i class="fas fa-circle"></i> Inactivo</span>
+              </div>
+            </div>
+            <div class="audio-visualizer" id="audioVisualizer">
+              <div class="visualizer-bars" id="visualizerBars">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <div class="monitor-controls">
+              <button class="btn btn-primary" id="btnStartAudio" onclick="startAudioCapture()">
+                <i class="fas fa-microphone"></i> Iniciar Audio
+              </button>
+              <button class="btn btn-danger" id="btnStopAudio" onclick="stopAudioCapture()" style="display:none">
+                <i class="fas fa-stop"></i> Detener
+              </button>
+            </div>
+          </div>
+
+          <div class="card monitor-card">
+            <div class="monitor-header">
+              <h3><i class="fas fa-comment-dots"></i> Transcripción en Vivo</h3>
+              <div class="monitor-status">
+                <span class="status-badge" id="transcriptStatus"><i class="fas fa-circle"></i> Esperando...</span>
+              </div>
+            </div>
+            <div id="liveTranscript" class="live-transcript">
+              <p class="empty-state">La transcripción en vivo aparecerá aquí</p>
+            </div>
+          </div>
+
+          <div class="card monitor-card">
+            <div class="monitor-header">
+              <h3><i class="fas fa-cog"></i> Configuración de Sesión</h3>
+            </div>
+            <div class="session-config">
+              <div class="form-group">
+                <label for="sessionTitle">Título de la Sesión</label>
+                <input type="text" id="sessionTitle" placeholder="Ej: Reunión con equipo de desarrollo">
+              </div>
+              <div class="form-group">
+                <label for="sessionType">Tipo de Sesión</label>
+                <select id="sessionType">
+                  <option value="work">Trabajo</option>
+                  <option value="meeting">Reunión</option>
+                  <option value="individual">Trabajo Individual</option>
+                  <option value="study">Estudio</option>
+                </select>
+              </div>
+              <div class="session-actions">
+                <button class="btn btn-success" id="btnStartSession" onclick="startSession()">
+                  <i class="fas fa-play"></i> Iniciar Sesión
+                </button>
+                <button class="btn btn-danger" id="btnEndSession" onclick="endSession()" style="display:none">
+                  <i class="fas fa-stop"></i> Terminar Sesión
+                </button>
+                <button class="btn btn-secondary" id="btnGenerateReport" onclick="generateReport()" style="display:none">
+                  <i class="fas fa-file-alt"></i> Generar Reporte
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sessions View -->
+      <section class="view" id="view-sessions">
+        <div class="view-header">
+          <h2>Sesiones</h2>
+          <p>Historial de todas tus sesiones de trabajo</p>
+        </div>
+
+        <div class="card">
+          <div class="filter-bar">
+            <input type="text" id="sessionSearch" placeholder="🔍 Buscar sesiones..." oninput="filterSessions()">
+            <select id="sessionFilter" onchange="filterSessions()">
+              <option value="all">Todas</option>
+              <option value="active">Activas</option>
+              <option value="ended">Terminadas</option>
+            </select>
+          </div>
+          <div id="sessions-list" class="session-list">
+            <p class="empty-state">Cargando sesiones...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reports View -->
+      <section class="view" id="view-reports">
+        <div class="view-header">
+          <h2>Reportes</h2>
+          <p>Reportes personales y gerenciales de tu jornada</p>
+        </div>
+
+        <div class="card">
+          <div class="reports-actions">
+            <button class="btn btn-primary" onclick="loadReports()">
+              <i class="fas fa-sync"></i> Actualizar
+            </button>
+          </div>
+          <div id="reports-list" class="reports-list">
+            <p class="empty-state">Cargando reportes...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search View -->
+      <section class="view" id="view-search">
+        <div class="view-header">
+          <h2>Buscador Semántico</h2>
+          <p>Busca en tu historial de transcripciones</p>
+        </div>
+
+        <div class="card">
+          <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Ej: ¿Qué me pidió Carlos en la reunión sobre el proyecto X?" onkeydown="if(event.key==='Enter')doSearch()">
+            <button class="btn btn-primary" onclick="doSearch()">
+              <i class="fas fa-search"></i> Buscar
+            </button>
+          </div>
+          <div id="search-results" class="search-results">
+            <p class="empty-state">Realiza una búsqueda para ver resultados</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Data View -->
+      <section class="view" id="view-data">
+        <div class="view-header">
+          <h2>Mis Datos</h2>
+          <p>Gestiona tus datos almacenados en el navegador</p>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-database"></i> Almacenamiento Local</h3>
+          <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+            Todos tus datos se guardan en el almacenamiento local de tu navegador. 
+            Puedes exportarlos como respaldo o eliminarlos cuando quieras.
+          </p>
+          
+          <div class="data-actions">
+            <button class="btn btn-primary" onclick="exportData()">
+              <i class="fas fa-download"></i> Exportar Datos
+            </button>
+            <button class="btn btn-secondary" onclick="importData()">
+              <i class="fas fa-upload"></i> Importar Datos
+            </button>
+          </div>
+          
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+          
+          <div class="danger-zone">
+            <h4><i class="fas fa-exclamation-triangle"></i> Zona de Peligro</h4>
+            <p>Esto eliminará permanentemente todos tus datos de sesiones, transcripciones y reportes.</p>
+            <button class="btn btn-danger" onclick="clearAllData()">
+              <i class="fas fa-trash"></i> Borrar Todos los Datos
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal para ver reporte -->
+  <div class="modal" id="reportModal" style="display:none">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Reporte</h3>
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="js/standalone.js"></script>
+</body>
+</html>

@@ -1,18 +1,24 @@
 # Productivity Monitor
 
-Sistema de monitoreo de productividad y registro de actividades — 100% Web, sin instaladores ni ejecutables.
+Sistema de monitoreo de productividad y registro de actividades — **100% Web, sin instalar nada**.
 
-## 🚀 Inicio Rápido
+## 🚀 Uso en Línea (GitHub Pages)
 
-```bash
-# Instalar dependencias
-npm install
+**Solo entra a la página y comienza a monitorear.** No necesitas instalar nada.
 
-# Iniciar servidor
-npm start
-```
+👉 **https://bryanpalma95.github.io/productivity-monitor/**
 
-Abrir en el navegador: **http://localhost:3457**
+### Cómo funciona
+1. Abre la página en tu navegador (Chrome o Edge recomendado)
+2. Haz clic en **"Iniciar Monitoreo"**
+3. Comparte tu pantalla y activa el micrófono
+4. Habla sobre tu trabajo — se transcribe automáticamente
+5. Termina la sesión y genera reportes
+
+### Almacenamiento
+- Todos los datos se guardan **localmente en tu navegador** (localStorage)
+- Nada se envía a servidores externos
+- Puedes exportar/importar tus datos como respaldo
 
 ## 📋 Características
 
@@ -35,9 +41,9 @@ Abrir en el navegador: **http://localhost:3457**
 ### 4. Reportes Duales
 - **Reporte Personal**: Pendientes, ideas clave, bloqueos
 - **Reporte Gerencial**: Proyectos, personas, hitos, categorías
-- Clasificación automática por categorías (reuniones, trabajo individual, solicitudes, avances)
+- Clasificación automática por categorías
 
-### 5. Buscador Semántico
+### 5. Buscador
 - Búsqueda en todo el historial de transcripciones
 - Resultados con contexto de sesión y fecha
 
@@ -45,51 +51,43 @@ Abrir en el navegador: **http://localhost:3457**
 - Botón de pausa para detener el monitoreo
 - Detiene captura de pantalla y audio al activarse
 
+### 7. Gestión de Datos
+- Exportar datos como archivo JSON
+- Importar datos desde archivo JSON
+- Borrar todos los datos
+
 ## 🏗️ Arquitectura
 
 ```
 productivity-monitor/
-├── server.js              # Backend (Express)
-├── package.json           # Dependencias
+├── index.html              # Redirección a la app
 ├── public/
-│   ├── index.html         # Frontend principal
+│   ├── standalone.html     # App principal (100% navegador)
 │   ├── css/
-│   │   └── styles.css     # Estilos
+│   │   └── styles.css      # Estilos
 │   └── js/
-│       └── app.js         # Lógica del frontend
-└── data/                  # Almacenamiento (creado automáticamente)
-    ├── sessions/          # Sesiones JSON
-    ├── transcripts/       # Transcripciones JSON
-    ├── reports/           # Reportes JSON
-    └── screenshots/       # Capturas de pantalla
+│       └── standalone.js   # Lógica completa (localStorage)
+├── server.js               # Backend opcional (Express)
+└── package.json            # Dependencias (solo para modo servidor)
 ```
 
-## 🔌 API Endpoints
+## 🖥️ Modo Servidor (Opcional)
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/health` | Estado del servidor |
-| POST | `/api/sessions` | Crear sesión |
-| GET | `/api/sessions` | Listar sesiones |
-| GET | `/api/sessions/:id` | Obtener sesión |
-| PUT | `/api/sessions/:id` | Actualizar sesión |
-| POST | `/api/sessions/:id/end` | Terminar sesión |
-| DELETE | `/api/sessions/:id` | Eliminar sesión |
-| POST | `/api/sessions/:id/transcripts` | Agregar transcripción |
-| GET | `/api/sessions/:id/transcripts` | Obtener transcripciones |
-| POST | `/api/sessions/:id/screenshots` | Guardar captura |
-| GET | `/api/sessions/:id/screenshots` | Obtener capturas |
-| POST | `/api/sessions/:id/report` | Generar reporte |
-| GET | `/api/reports` | Listar reportes |
-| GET | `/api/reports/:id` | Obtener reporte |
-| GET | `/api/search?q=...` | Búsqueda semántica |
-| GET | `/api/stats` | Estadísticas |
+Si prefieres usar el modo servidor con API REST:
+
+```bash
+npm install
+npm start
+```
+
+Abrir en el navegador: **http://localhost:3457**
 
 ## 🔒 Privacidad
 
-- Los datos se almacenan localmente en el servidor
+- Los datos se almacenan **localmente en tu navegador**
 - Modo privacidad para pausar el monitoreo
 - Sin envío de datos a terceros
+- Exporta tus datos cuando quieras
 
 ## ⚠️ Requisitos del Navegador
 
