@@ -1,0 +1,17 @@
+{
+  "name": "productivity-monitor",
+  "version": "1.0.0",
+  "description": "Sistema de monitoreo de productividad y registro de actividades - Web SaaS",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1"
+  }
+}
