@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Sessions Module v2.1.0
+   Productivity Monitor - Sessions Module v3.0.0
    Sesiones, edición, recuperación y detalles
    ============================================================ */
 

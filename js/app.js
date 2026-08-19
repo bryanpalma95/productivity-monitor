@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - App Builder v2.1.0
+   Productivity Monitor - App Builder v3.0.0
    Carga los partials HTML y construye la aplicación
    ============================================================ */
 

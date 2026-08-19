@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v2.5.0
+   Productivity Monitor - Monitor Module v3.0.0
    Transcripción: Groq Whisper (si hay API key) → Web Speech API (fallback)
    ============================================================ */
 

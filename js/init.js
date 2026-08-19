@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Init Module v2.1.0
+   Productivity Monitor - Init Module v3.0.0
    Inicialización, privacidad, gestión de datos y PWA
    ============================================================ */
 

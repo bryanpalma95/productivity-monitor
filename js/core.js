@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Core Module v2.1.0
+   Productivity Monitor - Core Module v3.0.0
    Estado global, almacenamiento y utilidades
    ============================================================ */
 
