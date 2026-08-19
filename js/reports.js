@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Reports Module v3.0.2
+   Productivity Monitor - Reports Module v3.0.3
    Reportes, exportación y análisis con IA
    ============================================================ */
 
@@ -293,8 +293,8 @@ const AI_CHUNK_SIZE = 4000;
 const AI_MAX_CHUNKS = 20;
 
 // Modelo activo y registro de cambios
-const GROQ_MODEL = 'llama3-8b-8192';
-const GROQ_MODEL_UPDATED = '2026-08-19'; // Actualizado desde llama-3.1-8b-instant (deprecado por Groq)
+const GROQ_MODEL = 'qwen/qwen3';
+const GROQ_MODEL_UPDATED = '2026-08-19'; // Actualizado desde llama3-8b-8192 (deprecado por Groq)
 
 // Llama a Groq para generar texto
 async function callGroqChat(messages) {
