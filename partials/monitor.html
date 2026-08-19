@@ -44,7 +44,7 @@
       </div>
       <div class="audio-source-selector">
         <label style="font-weight:600;margin-bottom:8px;display:block">Fuentes de audio:</label>
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
             <input type="checkbox" id="audioSourceMic" checked onchange="handleAudioSourceChange()">
             🎤 Micrófono
@@ -53,6 +53,22 @@
             <input type="checkbox" id="audioSourceSystem" onchange="handleAudioSourceChange()">
             🔊 Audio del sistema
           </label>
+        </div>
+        <!-- Selector de dispositivo de sistema (visible solo si se activa el checkbox) -->
+        <div id="systemDeviceRow" style="display:none;margin-top:4px">
+          <label style="font-size:0.85rem;color:var(--text-secondary)">Dispositivo de entrada del sistema:</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <select id="systemAudioDevice" style="flex:1;font-size:0.85rem">
+              <option value="">Cargando dispositivos...</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="refreshAudioDevices()" title="Actualizar lista">
+              <i class="fas fa-sync"></i>
+            </button>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px">
+            💡 Para capturar el audio del PC busca <strong>Stereo Mix</strong>, <strong>What U Hear</strong> o similar. 
+            Si no aparece, actívalo en <em>Panel de Control → Sonido → Grabación → clic derecho → Mostrar dispositivos deshabilitados</em>.
+          </p>
         </div>
       </div>
       <div class="monitor-controls">

@@ -200,16 +200,50 @@ async function captureScreenshot() {
 }
 
 // ===== Audio y Transcripción =====
+
+// Enumerar dispositivos de entrada de audio disponibles
+async function refreshAudioDevices() {
+  const select = document.getElementById('systemAudioDevice');
+  if (!select) return;
+
+  try {
+    // Necesitamos permiso previo para ver los labels
+    await navigator.mediaDevices.getUserMedia({ audio: true }).then(s => s.getTracks().forEach(t => t.stop()));
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+
+    select.innerHTML = audioInputs.length === 0
+      ? '<option value="">No se encontraron dispositivos</option>'
+      : audioInputs.map(d =>
+          `<option value="${d.deviceId}">${d.label || 'Dispositivo ' + d.deviceId.slice(0, 6)}</option>`
+        ).join('');
+
+    // Intentar preseleccionar Stereo Mix / What U Hear / Loopback
+    const loopback = audioInputs.find(d =>
+      /stereo mix|what u hear|loopback|wave out|output|sistema|salida/i.test(d.label)
+    );
+    if (loopback) select.value = loopback.deviceId;
+
+  } catch (err) {
+    select.innerHTML = '<option value="">Error al listar dispositivos</option>';
+    console.error('Error enumerando dispositivos:', err);
+  }
+}
+
 function handleAudioSourceChange() {
   const hasMic = document.getElementById('audioSourceMic')?.checked;
   const hasSystem = document.getElementById('audioSourceSystem')?.checked;
   const hint = document.getElementById('audioSourceHint');
   const btnStart = document.getElementById('btnStartAudio');
-  if (!hint || !btnStart) return;
+  const systemDeviceRow = document.getElementById('systemDeviceRow');
 
-  const parts = [];
-  if (hasMic) parts.push('🎤 Micrófono');
-  if (hasSystem) parts.push('🔊 Sistema');
+  // Mostrar/ocultar selector de dispositivo del sistema
+  if (systemDeviceRow) {
+    systemDeviceRow.style.display = hasSystem ? 'block' : 'none';
+    if (hasSystem) refreshAudioDevices();
+  }
+
+  if (!hint || !btnStart) return;
 
   if (!hasMic && !hasSystem) {
     hint.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> <span>Selecciona al menos una fuente de audio.</span>';
@@ -219,10 +253,13 @@ function handleAudioSourceChange() {
   btnStart.disabled = false;
 
   const hasGroq = !!getGroqApiKey();
-  let msg = parts.join(' + ') + ' activos. ';
+  const parts = [];
+  if (hasMic) parts.push('🎤 Micrófono');
+  if (hasSystem) parts.push('🔊 Sistema');
+  let msg = parts.join(' + ') + '. ';
   msg += hasMic
     ? (hasGroq ? 'Transcripción vía Groq Whisper.' : 'Transcripción vía Speech API del navegador.')
-    : 'Solo captura de sistema (sin transcripción automática).';
+    : 'Solo captura del sistema.';
   hint.innerHTML = `<i class="fas fa-info-circle"></i> <span>${msg}</span>`;
 }
 
@@ -248,33 +285,40 @@ async function startAudioCapture() {
       });
     }
 
-    // ── Audio del sistema ──
+    // ── Audio del sistema via dispositivo de entrada (Stereo Mix, etc.) ──
     if (useSystem) {
-      if (!App.screenStream) {
-        showToast('⚠️ Primero comparte la pantalla (con la opción de audio activada) para capturar el audio del sistema.', 'error');
-        // Si el mic ya se inició, seguimos con solo mic
+      const deviceId = document.getElementById('systemAudioDevice')?.value;
+
+      if (!deviceId) {
+        showToast('⚠️ Selecciona un dispositivo de sistema en la lista.', 'error');
         if (!useMic) return;
       } else {
-        const systemTracks = App.screenStream.getAudioTracks();
-        if (systemTracks.length === 0) {
-          showToast('⚠️ La pantalla compartida no tiene audio. Vuelve a compartirla marcando "Compartir audio".', 'error');
-        } else {
-          // Clonar pistas para no afectar el screenStream
-          const cloned = systemTracks.map(t => t.clone());
-          App.systemAudioStream = new MediaStream(cloned);
+        try {
+          const sysStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              deviceId: { exact: deviceId },
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false
+            }
+          });
+          App.systemAudioStream = sysStream;
           startSystemAudioTranscription();
+          showToast('🔊 Audio del sistema capturado desde dispositivo de entrada');
+        } catch (sysErr) {
+          console.error('Error capturando audio del sistema:', sysErr);
+          showToast('⚠️ No se pudo acceder al dispositivo de sistema. Intenta con otro.', 'error');
+          if (!useMic) return;
         }
       }
     }
 
-    // Visualizador: usar el stream del mic si existe, si no usar el del sistema
+    // Visualizador: usar mic si existe, si no el sistema
     const streamForVisualizer = App.audioStream || App.systemAudioStream;
     if (streamForVisualizer) setupAudioVisualizer(streamForVisualizer);
 
     // Iniciar transcripción del mic
-    if (useMic && App.audioStream) {
-      startMicTranscription();
-    }
+    if (useMic && App.audioStream) startMicTranscription();
 
     document.getElementById('btnStartAudio').style.display = 'none';
     document.getElementById('btnStopAudio').style.display = 'inline-flex';
@@ -282,8 +326,8 @@ async function startAudioCapture() {
     const statusParts = [];
     if (useMic && App.audioStream) statusParts.push('🎤 Mic');
     if (useSystem && App.systemAudioStream) statusParts.push('🔊 Sistema');
-    const statusEl = document.getElementById('audioStatus');
-    statusEl.innerHTML = `<span class="status-badge active"><i class="fas fa-circle"></i> ${statusParts.join(' + ') || 'Grabando'}</span>`;
+    document.getElementById('audioStatus').innerHTML =
+      `<span class="status-badge active"><i class="fas fa-circle"></i> ${statusParts.join(' + ') || 'Grabando'}</span>`;
 
     showToast('🎙️ Audio iniciado: ' + statusParts.join(' + '));
 
