@@ -14,6 +14,7 @@ const App = {
   transcriptBuffer: [],
   screenshotInterval: null,
   systemTranscriptionInterval: null,
+  micTranscriptionInterval: null,
   audioContext: null,
   analyser: null,
   visualizerInterval: null,

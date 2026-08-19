@@ -1,10 +1,12 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v2.2.0
+   Productivity Monitor - Monitor Module v2.3.0
    Captura de pantalla, audio y transcripción en vivo
+   Micrófono y sistema usan Whisper via OmniRoute (no SpeechRecognition)
    ============================================================ */
 
-// Referencia al MediaRecorder activo del audio del sistema (evita instancias zombie)
+// Referencia al MediaRecorder activo (micrófono o sistema) — evita instancias zombie
 let _systemMediaRecorder = null;
+let _micMediaRecorder = null;
 
 // ===== Captura de Pantalla =====
 async function startScreenCapture() {
@@ -142,11 +144,11 @@ function handleAudioSourceChange() {
   const btnStart = document.getElementById('btnStartAudio');
 
   if (source === 'system') {
-    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema requiere compartir pantalla con audio. Se transcribe usando IA (OmniRoute).</span>';
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema requiere compartir pantalla con audio. Se transcribe usando IA (Whisper).</span>';
     btnStart.innerHTML = '<i class="fas fa-volume-up"></i> Iniciar Audio del Sistema';
   } else {
-    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El micrófono usa reconocimiento de voz del navegador (Chrome/Edge).</span>';
-    btnStart.innerHTML = '<i class="fas fa-microphone"></i> Iniciar Audio';
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El micrófono se transcribe cada 15 segundos usando IA (Whisper). Funciona en cualquier navegador.</span>';
+    btnStart.innerHTML = '<i class="fas fa-microphone"></i> Iniciar Micrófono';
   }
 }
 
@@ -186,7 +188,7 @@ async function startAudioCapture() {
 
       showToast('🔊 Audio del sistema y transcripción iniciados');
     } else {
-      // Micrófono: usa getUserMedia + SpeechRecognition
+      // Micrófono: usa getUserMedia + Whisper via OmniRoute (igual que audio del sistema)
       App.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -196,7 +198,7 @@ async function startAudioCapture() {
       });
 
       setupAudioVisualizer();
-      startSpeechRecognition();
+      startMicTranscription();
 
       document.getElementById('btnStartAudio').style.display = 'none';
       document.getElementById('btnStopAudio').style.display = 'inline-flex';
@@ -204,7 +206,7 @@ async function startAudioCapture() {
       const status = document.getElementById('audioStatus');
       status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando</span>';
 
-      showToast('🎤 Audio y transcripción iniciados');
+      showToast('🎤 Micrófono iniciado. Transcripción cada 15 seg via Whisper');
     }
   } catch (err) {
     console.error('Error al iniciar audio:', err);
@@ -323,6 +325,100 @@ async function transcribeSystemAudioChunk() {
   }
 }
 
+// ===== Transcripción del Micrófono (via Whisper/OmniRoute) =====
+function startMicTranscription() {
+  const transcriptStatus = document.getElementById('transcriptStatus');
+
+  if (!App.currentSession) {
+    transcriptStatus.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Esperando sesión...</span>';
+    showToast('ℹ️ Micrófono listo. La transcripción comenzará al iniciar una sesión.', 'info');
+  } else {
+    transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando (Whisper)...</span>';
+  }
+
+  clearInterval(App.micTranscriptionInterval);
+  App.micTranscriptionInterval = setInterval(() => {
+    if (!App.audioStream) return;
+    if (!App.currentSession) return;
+
+    const ts = document.getElementById('transcriptStatus');
+    if (ts && ts.querySelector('.idle')) {
+      ts.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando (Whisper)...</span>';
+    }
+
+    transcribeMicChunk();
+  }, 15000);
+}
+
+async function transcribeMicChunk() {
+  if (!App.audioStream || !App.currentSession) return;
+  if (_micMediaRecorder && _micMediaRecorder.state === 'recording') return;
+
+  try {
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+      .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+    const recorderOptions = mimeType ? { mimeType } : {};
+    _micMediaRecorder = new MediaRecorder(App.audioStream, recorderOptions);
+    const chunks = [];
+
+    _micMediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    _micMediaRecorder.onstop = async () => {
+      _micMediaRecorder = null;
+      if (chunks.length === 0) return;
+
+      const blobType = mimeType || 'audio/webm';
+      const blob = new Blob(chunks, { type: blobType });
+      if (blob.size < 1024) return; // silencio
+
+      const formData = new FormData();
+      const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
+      formData.append('file', blob, `mic.${ext}`);
+      formData.append('model', 'af/whisper-1');
+
+      try {
+        const response = await fetch('https://omniroute.vercel.app/api/audio', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          console.warn('Transcripción mic falló:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+        const text = data.text || data.transcript || '';
+        if (text && text.trim()) {
+          addTranscriptEntry(text.trim());
+        }
+      } catch (err) {
+        console.error('Error transcribiendo mic:', err);
+      }
+    };
+
+    _micMediaRecorder.onerror = (e) => {
+      console.error('MediaRecorder mic error:', e.error);
+      _micMediaRecorder = null;
+    };
+
+    _micMediaRecorder.start();
+
+    setTimeout(() => {
+      if (_micMediaRecorder && _micMediaRecorder.state === 'recording') {
+        _micMediaRecorder.stop();
+      }
+    }, 10000);
+
+  } catch (err) {
+    console.error('Error iniciando grabación de mic:', err);
+    _micMediaRecorder = null;
+  }
+}
+
 function stopAudioCapture() {
   // Detener el MediaRecorder del sistema si está activo
   if (_systemMediaRecorder && _systemMediaRecorder.state !== 'inactive') {
@@ -330,21 +426,28 @@ function stopAudioCapture() {
   }
   _systemMediaRecorder = null;
 
-  // Detener transcripción del audio del sistema
+  // Detener el MediaRecorder del micrófono si está activo
+  if (_micMediaRecorder && _micMediaRecorder.state !== 'inactive') {
+    try { _micMediaRecorder.stop(); } catch (e) {}
+  }
+  _micMediaRecorder = null;
+
+  // Detener intervalos de transcripción
   clearInterval(App.systemTranscriptionInterval);
   App.systemTranscriptionInterval = null;
+  clearInterval(App.micTranscriptionInterval);
+  App.micTranscriptionInterval = null;
 
   if (App.audioStream) {
-    // Detener las pistas del stream de audio (son clones si era audio del sistema,
-    // o pistas reales del mic — en ambos casos es seguro detenerlas)
     App.audioStream.getTracks().forEach(t => t.stop());
     App.audioStream = null;
   }
 
+  // App.recognition ya no se usa (reemplazado por Whisper), pero limpiamos por si acaso
   if (App.recognition) {
     const rec = App.recognition;
-    App.recognition = null; // Nullificar antes de stop() para que onend no reinicie
-    rec.stop();
+    App.recognition = null;
+    try { rec.stop(); } catch (e) {}
   }
 
   if (App.audioContext) {
@@ -398,78 +501,8 @@ function setupAudioVisualizer() {
   }, 100);
 }
 
-function startSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    showToast('⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.', 'error');
-    return;
-  }
-
-  App.recognition = new SpeechRecognition();
-  App.recognition.lang = 'es-ES';
-  App.recognition.continuous = true;
-  App.recognition.interimResults = true;
-
-  let finalTranscript = '';
-
-  App.recognition.onresult = (event) => {
-    let interim = '';
-
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscript += transcript + ' ';
-        addTranscriptEntry(transcript);
-      } else {
-        interim += transcript;
-      }
-    }
-
-    const liveTranscript = document.getElementById('liveTranscript');
-    if (interim) {
-      liveTranscript.innerHTML = `
-        <div class="transcript-entry interim">
-          <span class="transcript-time">${formatTime(Date.now())}</span>
-          <span class="transcript-text">${escapeHtml(interim)}</span>
-        </div>
-      `;
-    }
-  };
-
-  App.recognition.onerror = (event) => {
-    console.error('Error de reconocimiento:', event.error);
-    if (event.error === 'not-allowed') {
-      showToast('❌ Permiso de micrófono denegado', 'error');
-      stopAudioCapture();
-    } else if (event.error === 'network') {
-      showToast('⚠️ Speech Recognition requiere conexión. Reintentando...', 'info');
-      // network error es transitorio — onend lo reiniciará
-    } else if (event.error === 'service-not-allowed') {
-      showToast('❌ El servicio de voz no está disponible en este navegador/dominio.', 'error');
-      stopAudioCapture();
-    } else if (event.error === 'no-speech') {
-      // No es error real, el navegador detectó silencio — onend reiniciará
-    } else {
-      console.warn('SpeechRecognition error:', event.error);
-    }
-  };
-
-  App.recognition.onend = () => {
-    // Solo reiniciar si el stream sigue activo y el recognition no fue detenido intencionalmente
-    if (App.audioStream && !App.privacyMode && App.recognition) {
-      try {
-        App.recognition.start();
-      } catch (e) {
-        // Ignorar errores de inicio (e.g. ya está iniciado)
-      }
-    }
-  };
-
-  App.recognition.start();
-
-  const transcriptStatus = document.getElementById('transcriptStatus');
-  transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando...</span>';
-}
+// startSpeechRecognition() eliminado — reemplazado por transcribeMicChunk() via Whisper
+// para garantizar funcionamiento en HTTPS/GitHub Pages sin depender de la API del navegador
 
 function addTranscriptEntry(text) {
   if (!App.currentSession) return;
