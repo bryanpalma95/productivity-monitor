@@ -50,6 +50,13 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Permitir que la página fuerce skipWaiting si hay un SW en espera
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Fetch: network-first para JS/HTML (siempre código fresco), cache-first para assets estáticos
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;

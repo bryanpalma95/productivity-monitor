@@ -179,11 +179,42 @@ function updateStorageIndicator() {
 
 // ===== PWA / Service Worker =====
 function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(err => {
-      console.log('Service Worker no disponible:', err);
+  if (!('serviceWorker' in navigator)) return;
+
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    // Si hay un SW nuevo esperando, activarlo inmediatamente y recargar
+    const activateWaiting = (worker) => {
+      worker.postMessage({ type: 'SKIP_WAITING' });
+    };
+
+    if (reg.waiting) {
+      // Ya hay un SW en espera al momento de registrar
+      activateWaiting(reg.waiting);
+    }
+
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // Nuevo SW instalado con uno viejo activo — forzar activación
+          activateWaiting(newWorker);
+        }
+      });
     });
-  }
+
+    // Cuando el SW cambie (nuevo activado), recargar para usar código fresco
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+
+  }).catch(err => {
+    console.log('Service Worker no disponible:', err);
+  });
 }
 
 // ===== Buscador global =====
