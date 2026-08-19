@@ -289,23 +289,36 @@ function exportJSON() {
 }
 
 // ===== Resumen IA =====
-// Constantes de configuración
-const AI_CHUNK_SIZE = 4000;      // Caracteres por fragmento (~5-7 min de transcripción)
-const AI_MAX_CHUNKS = 20;        // Máximo de fragmentos a procesar (~2 horas de transcripción)
+const AI_CHUNK_SIZE = 4000;
+const AI_MAX_CHUNKS = 20;
 
-// Función auxiliar para llamar a la API de OmniRoute
-async function callOmniRoute(messages) {
-  const response = await fetch('https://omniroute.vercel.app/api/chat', {
+// Llama a Groq para generar texto
+async function callGroqChat(messages) {
+  const apiKey = (typeof getGroqApiKey === 'function') ? getGroqApiKey() : localStorage.getItem('groq_api_key') || '';
+  if (!apiKey) throw new Error('No hay Groq API key configurada. Ve a Mis Datos para agregarla.');
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({
-      model: 'auto/best-chat',
-      messages
+      model: 'llama-3.3-70b-versatile',
+      messages,
+      temperature: 0.3,
+      max_tokens: 1024
     })
   });
-  if (!response.ok) throw new Error('Error en la API');
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || data.message?.content || 'No se pudo generar el resumen.';
+
+  if (res.status === 401) throw new Error('API key de Groq inválida. Verifica en Mis Datos.');
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Error Groq: ' + res.status + ' — ' + err.slice(0, 200));
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || 'No se pudo generar el resumen.';
 }
 
 // Función para dividir la transcripción en fragmentos
@@ -361,7 +374,7 @@ async function generateAISummary(sessionId) {
     if (chunksToProcess.length <= 1) {
       const transcriptText = chunksToProcess[0] || '';
 
-      const summary = await callOmniRoute([
+      const summary = await callGroqChat([
         {
           role: 'system',
           content: `Eres un analista experto en productividad y gestión del tiempo. 
@@ -426,7 +439,7 @@ ${transcriptText || 'Sin transcripciones disponibles'}`
         </div>
       `;
 
-      const partial = await callOmniRoute([
+      const partial = await callGroqChat([
         {
           role: 'system',
           content: `Eres un analista experto en productividad. Analiza este FRAGMENTO de una sesión de trabajo y genera un resumen breve en español con:
@@ -462,7 +475,7 @@ ${chunksToProcess[i]}`
     // Combinar los resúmenes parciales en un resumen final
     const combinedSummaries = partialSummaries.map((s, i) => `--- Parte ${i + 1} ---\n${s}`).join('\n\n');
 
-    const finalSummary = await callOmniRoute([
+    const finalSummary = await callGroqChat([
       {
         role: 'system',
         content: `Eres un analista experto en productividad y gestión del tiempo. 

@@ -3,7 +3,7 @@
    Cache offline para PWA — JS/HTML usan network-first
    ============================================================ */
 
-const CACHE_NAME = 'productivity-monitor-v2.11.0';
+const CACHE_NAME = 'productivity-monitor-v2.12.0';
 const CORE_ASSETS = [
   './',
   './index.html',

@@ -371,7 +371,8 @@ function startSystemAudioTranscription() {
   if (transcriptStatus) transcriptStatus.innerHTML =
     '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando sistema...</span>';
 
-  // Primer chunk inmediato, luego cada 15s
+  // Grabación casi continua: iniciar chunk cada 15s, cada chunk graba 14s
+  // → solo 1s de gap entre chunks para no perder nada
   _runSystemChunk();
   App.systemTranscriptionInterval = setInterval(() => {
     if (!App.systemAudioStream || !App.currentSession) {
@@ -397,6 +398,9 @@ function _runSystemChunk() {
   const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
     .find(m => MediaRecorder.isTypeSupported(m)) || '';
 
+  // Capturar timestamp al inicio del chunk para la transcripción
+  const chunkStartTime = Date.now();
+
   console.log('[Sistema] Chunk iniciado. MIME:', mimeType || 'default', '| Groq:', apiKey ? apiKey.slice(0,8)+'...' : 'NO — ve a Mis Datos y guarda la key');
 
   try {
@@ -412,7 +416,6 @@ function _runSystemChunk() {
   _systemMediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) {
       chunks.push(e.data);
-      console.log('[Sistema] Data:', e.data.size, 'bytes');
     }
   };
 
@@ -454,7 +457,10 @@ function _runSystemChunk() {
       if (!res.ok) { console.warn('[Sistema] Groq error:', await res.text()); return; }
       const data = await res.json();
       console.log('[Sistema] Transcripción:', data.text);
-      if (data.text && data.text.trim()) addTranscriptEntry('[Sistema] ' + data.text.trim());
+      // Usar el timestamp del inicio del chunk para marcar cuándo se dijo
+      if (data.text && data.text.trim()) {
+        addTranscriptEntry('[🔊] ' + data.text.trim(), chunkStartTime);
+      }
     } catch (err) {
       console.error('[Sistema] Fetch falló:', err);
     }
@@ -467,11 +473,12 @@ function _runSystemChunk() {
 
   _systemMediaRecorder.start(1000); // timeslice 1s para datos continuos
 
+  // Grabar 14s de cada ciclo de 15s → solo 1s de gap
   setTimeout(() => {
     if (_systemMediaRecorder && _systemMediaRecorder.state !== 'inactive') {
       _systemMediaRecorder.stop();
     }
-  }, 10000);
+  }, 14000);
 }
 
 // Alias para compatibilidad
@@ -801,12 +808,13 @@ function setupAudioVisualizer(stream) {
 // startSpeechRecognition() eliminado — reemplazado por transcribeMicChunk() via Whisper
 // para garantizar funcionamiento en HTTPS/GitHub Pages sin depender de la API del navegador
 
-function addTranscriptEntry(text) {
+function addTranscriptEntry(text, timestamp) {
   if (!App.currentSession) return;
 
+  const ts = timestamp || Date.now();
   const entry = {
     id: generateId(),
-    timestamp: Date.now(),
+    timestamp: ts,
     text: text.trim()
   };
 
@@ -819,9 +827,12 @@ function addTranscriptEntry(text) {
 
   const liveTranscript = document.getElementById('liveTranscript');
   const entryEl = document.createElement('div');
-  entryEl.className = 'transcript-entry';
+
+  // Estilo diferente para entradas del sistema vs micrófono
+  const isSystem = text.startsWith('[🔊]');
+  entryEl.className = 'transcript-entry' + (isSystem ? ' transcript-system' : '');
   entryEl.innerHTML = `
-    <span class="transcript-time">${formatTime(entry.timestamp)}</span>
+    <span class="transcript-time">${formatTime(ts)}</span>
     <span class="transcript-text">${escapeHtml(entry.text)}</span>
   `;
 
