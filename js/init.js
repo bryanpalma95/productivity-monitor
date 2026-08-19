@@ -181,39 +181,40 @@ function updateStorageIndicator() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
-  navigator.serviceWorker.register('sw.js').then((reg) => {
-    // Si hay un SW nuevo esperando, activarlo inmediatamente y recargar
-    const activateWaiting = (worker) => {
-      worker.postMessage({ type: 'SKIP_WAITING' });
-    };
+  // Registrar el SW después de que la app cargó completamente
+  // para que esta sesión use los archivos frescos de red
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
 
-    if (reg.waiting) {
-      // Ya hay un SW en espera al momento de registrar
-      activateWaiting(reg.waiting);
-    }
+      const activateWaiting = (worker) => {
+        worker.postMessage({ type: 'SKIP_WAITING' });
+      };
 
-    reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      if (!newWorker) return;
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // Nuevo SW instalado con uno viejo activo — forzar activación
-          activateWaiting(newWorker);
+      if (reg.waiting) {
+        activateWaiting(reg.waiting);
+      }
+
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            activateWaiting(newWorker);
+          }
+        });
+      });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
         }
       });
-    });
 
-    // Cuando el SW cambie (nuevo activado), recargar para usar código fresco
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
-        refreshing = true;
-        window.location.reload();
-      }
+    }).catch(err => {
+      console.log('Service Worker no disponible:', err);
     });
-
-  }).catch(err => {
-    console.log('Service Worker no disponible:', err);
   });
 }
 

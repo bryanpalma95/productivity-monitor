@@ -25,6 +25,22 @@
   <!-- App container (populated by JS) -->
   <div id="app-root"></div>
 
+  <!-- Forzar desregistro del Service Worker viejo antes de cargar la app -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => {
+          reg.unregister().then(() => {
+            // Limpiar todos los caches del SW viejo
+            caches.keys().then(keys => {
+              keys.forEach(k => caches.delete(k));
+            });
+          });
+        });
+      });
+    }
+  </script>
+
   <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
