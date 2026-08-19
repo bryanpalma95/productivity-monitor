@@ -59,6 +59,7 @@ const Storage = {
     const sessions = this.getSessions();
     sessions.unshift(session);
     this.saveSessions(sessions);
+    this.syncToCloud();
   },
 
   updateSession(sessionId, updates) {
@@ -67,6 +68,7 @@ const Storage = {
     if (idx !== -1) {
       sessions[idx] = { ...sessions[idx], ...updates };
       this.saveSessions(sessions);
+      this.syncToCloud();
     }
   },
 
@@ -77,12 +79,22 @@ const Storage = {
   deleteSession(sessionId) {
     const sessions = this.getSessions().filter(s => s.id !== sessionId);
     this.saveSessions(sessions);
+    this.syncToCloud();
   },
 
   clearAll() {
     localStorage.removeItem(this.KEY);
     localStorage.removeItem(this.META_KEY);
+    this.syncToCloud();
   },
+
+  // Sincronizar con la nube si el usuario está autenticado
+  syncToCloud() {
+    if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof pushToCloud === 'function') {
+      pushToCloud();
+    }
+  },
+
 
   // Métricas de almacenamiento
   getUsage() {

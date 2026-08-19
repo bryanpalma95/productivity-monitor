@@ -56,6 +56,14 @@ Sistema de monitoreo de productividad y registro de actividades — **100% Web, 
 - Importar datos desde archivo JSON
 - Borrar todos los datos
 
+### 8. Sincronización en la Nube (Firebase)
+- Crea una cuenta o inicia sesión con Google
+- Tus sesiones, transcripciones y reportes se sincronizan entre dispositivos
+- Fusión automática de datos al iniciar sesión
+- Sincronización manual con un clic
+- Cada usuario tiene sus propios datos (aislamiento por cuenta)
+- Los datos se guardan de forma segura en Firestore
+
 ## 🏗️ Arquitectura
 
 ```

@@ -45,6 +45,7 @@ function initApp() {
     // Escape para cerrar modal
     if (e.key === 'Escape') {
       closeModal();
+      if (typeof closeAuthModal === 'function') closeAuthModal();
     }
   });
 }

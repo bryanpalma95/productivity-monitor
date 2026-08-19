@@ -6,6 +6,41 @@
   </div>
 
   <div class="card">
+    <h3><i class="fas fa-cloud"></i> Sincronización en la Nube</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Inicia sesión para sincronizar tus datos entre dispositivos. Tus sesiones, transcripciones y reportes se guardarán en la nube de forma segura.
+    </p>
+
+    <div id="dataSyncStatus" class="sync-status">
+      <i class="fas fa-cloud-upload-alt"></i> Sin sincronizar
+    </div>
+
+    <div id="dataAuthSection">
+      <button class="btn btn-primary" onclick="openAuthModal()">
+        <i class="fas fa-sign-in-alt"></i> Iniciar sesión / Crear cuenta
+      </button>
+    </div>
+
+    <div id="dataUserInfo" style="display:none">
+      <div class="user-info-card">
+        <div class="user-avatar"><i class="fas fa-user"></i></div>
+        <div class="user-details">
+          <div id="dataUserName" class="user-name">Usuario</div>
+          <div id="dataUserEmail" class="user-email"></div>
+        </div>
+      </div>
+      <div class="cloud-sync-actions">
+        <button class="btn btn-primary" onclick="manualSync()">
+          <i class="fas fa-sync"></i> Sincronizar ahora
+        </button>
+        <button class="btn btn-secondary" onclick="signOut()">
+          <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <h3><i class="fas fa-database"></i> Almacenamiento Local</h3>
     <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
       Todos tus datos se guardan en el almacenamiento local de tu navegador. 

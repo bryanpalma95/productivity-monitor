@@ -15,6 +15,68 @@
   </div>
 </div>
 
+<!-- Modal de autenticación -->
+<div class="modal" id="authModal" style="display:none">
+  <div class="modal-card auth-modal-card">
+    <div class="modal-header">
+      <h3><i class="fas fa-cloud"></i> Sincronización en la nube</h3>
+      <button class="modal-close" onclick="closeAuthModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="authTabLogin" onclick="switchAuthMode('login')">Iniciar sesión</button>
+        <button class="auth-tab" id="authTabSignup" onclick="switchAuthMode('signup')">Crear cuenta</button>
+      </div>
+
+      <!-- Login -->
+      <form id="loginForm" class="auth-form" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" id="loginEmail" placeholder="tu@correo.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div id="loginError" class="auth-error"></div>
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+        </button>
+      </form>
+
+      <!-- Signup -->
+      <form id="signupForm" class="auth-form" style="display:none" onsubmit="handleSignupSubmit(event)">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" id="signupName" placeholder="Tu nombre" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" id="signupEmail" placeholder="tu@correo.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="signupPassword" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div id="signupError" class="auth-error"></div>
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fas fa-user-plus"></i> Crear cuenta
+        </button>
+      </form>
+
+      <div class="auth-divider"><span>o</span></div>
+
+      <button class="btn btn-google btn-block" onclick="handleGoogleLogin()">
+        <i class="fab fa-google"></i> Continuar con Google
+      </button>
+
+      <p class="auth-note">
+        <i class="fas fa-lock"></i> Tus datos se sincronizan de forma segura entre tus dispositivos.
+      </p>
+    </div>
+  </div>
+</div>
+
 <!-- Bottom Nav (mobile) -->
 <nav class="bottom-nav" id="bottomNav">
   <button class="bn-item active" data-view="dashboard" onclick="switchView('dashboard')">

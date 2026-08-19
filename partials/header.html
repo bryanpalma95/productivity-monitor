@@ -70,6 +70,43 @@
       <p class="privacy-hint">Pausa el monitoreo durante momentos personales</p>
     </div>
 
+    <!-- Sincronización en la nube -->
+    <div class="cloud-sync">
+      <div class="cloud-sync-header">
+        <span><i class="fas fa-cloud"></i> Sincronización en la nube</span>
+      </div>
+      <div id="syncStatus" class="sync-status">
+        <i class="fas fa-cloud-upload-alt"></i> Sin sincronizar
+      </div>
+
+      <!-- No autenticado -->
+      <div id="authSection">
+        <button class="btn btn-primary btn-block" onclick="openAuthModal()">
+          <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+        </button>
+        <p class="cloud-sync-hint">Crea una cuenta para sincronizar tus datos entre dispositivos</p>
+      </div>
+
+      <!-- Autenticado -->
+      <div id="userInfo" style="display:none">
+        <div class="user-info-card">
+          <div class="user-avatar"><i class="fas fa-user"></i></div>
+          <div class="user-details">
+            <div id="userName" class="user-name">Usuario</div>
+            <div id="userEmail" class="user-email"></div>
+          </div>
+        </div>
+        <div class="cloud-sync-actions">
+          <button class="btn btn-secondary btn-sm" onclick="manualSync()">
+            <i class="fas fa-sync"></i> Sincronizar ahora
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="signOut()">
+            <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Indicador de almacenamiento -->
     <div id="storageIndicator" class="storage-indicator-container"></div>
 

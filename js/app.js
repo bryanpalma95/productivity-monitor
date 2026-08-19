@@ -45,6 +45,10 @@ async function loadApp() {
     // Inicializar la aplicación (dashboard, sesión activa, storage, PWA, atajos)
     initApp();
 
+    // Actualizar UI de autenticación (Firebase) después de cargar los partials
+    if (typeof updateAuthUI === 'function') {
+      updateAuthUI();
+    }
 
   } catch (err) {
     console.error('Error cargando la aplicación:', err);
