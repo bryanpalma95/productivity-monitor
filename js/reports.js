@@ -308,7 +308,14 @@ async function generateAISummary(sessionId) {
   `;
 
   const transcripts = session.transcripts || [];
-  const transcriptText = transcripts.map(t => t.text).join(' ').slice(0, 3000);
+  // Incluir timestamps en las transcripciones para mejor contexto
+  const transcriptText = transcripts
+    .map(t => `[${formatTime(t.timestamp)}] ${t.text}`)
+    .join('\n')
+    .slice(0, 4000);
+
+  const screenshots = session.screenshots || [];
+  const sessionDate = session.startedAt ? formatDateTime(session.startedAt) : 'Desconocida';
 
   try {
     const response = await fetch('https://omniroute.vercel.app/api/chat', {
@@ -319,11 +326,44 @@ async function generateAISummary(sessionId) {
         messages: [
           {
             role: 'system',
-            content: 'Eres un asistente que resume sesiones de trabajo. Genera un resumen conciso en español con: 1) Temas principales, 2) Tareas realizadas, 3) Puntos de acción.'
+            content: `Eres un analista experto en productividad y gestión del tiempo. 
+Analiza la sesión de trabajo y genera un resumen profesional en español con el siguiente formato Markdown:
+
+## 📌 Resumen Ejecutivo
+(2-3 oraciones que resuman el propósito y resultado de la sesión)
+
+## 🎯 Temas Principales
+- Tema 1
+- Tema 2
+- Tema 3
+
+## ✅ Tareas Realizadas
+- Tarea 1
+- Tarea 2
+
+## 📋 Pendientes / Puntos de Acción
+- [ ] Acción 1
+- [ ] Acción 2
+
+## 💡 Observaciones
+(1-2 oraciones con insights, riesgos o recomendaciones)
+
+Reglas:
+- Sé conciso y específico, basado SOLO en la información proporcionada
+- No inventes datos que no estén en la transcripción
+- Si no hay transcripciones, indícalo y sugiere qué información faltó`
           },
           {
             role: 'user',
-            content: `Sesión: ${session.title}\nTipo: ${getTypeLabel(session.type)}\nDuración: ${formatDuration(session.duration || 0)}\nTranscripciones:\n${transcriptText || 'Sin transcripciones disponibles'}`
+            content: `Sesión: ${session.title}
+Tipo: ${getTypeLabel(session.type)}
+Fecha: ${sessionDate}
+Duración: ${formatDuration(session.duration || 0)}
+Capturas de pantalla: ${screenshots.length}
+Transcripciones: ${transcripts.length}
+
+Transcripción:
+${transcriptText || 'Sin transcripciones disponibles'}`
           }
         ]
       })
@@ -334,13 +374,25 @@ async function generateAISummary(sessionId) {
     const data = await response.json();
     const summary = data.choices?.[0]?.message?.content || data.message?.content || 'No se pudo generar el resumen.';
 
+    // Guardar el resumen para copiar/descargar
+    window._lastAISummary = summary;
+
     body.innerHTML = `
       <div class="ai-summary">
         <div class="ai-result">
           <h4><i class="fas fa-robot"></i> Resumen generado</h4>
           <div class="ai-text">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
         </div>
-        <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px">
+        <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="copyAISummary()">
+            <i class="fas fa-copy"></i> Copiar
+          </button>
+          <button class="btn btn-secondary" onclick="downloadAISummary('${session.id}')">
+            <i class="fas fa-download"></i> Descargar
+          </button>
+          <button class="btn btn-primary" onclick="generateAISummary('${session.id}')">
+            <i class="fas fa-redo"></i> Regenerar
+          </button>
           <button class="btn btn-secondary" onclick="closeModal()">
             <i class="fas fa-times"></i> Cerrar
           </button>
@@ -368,4 +420,37 @@ async function generateAISummary(sessionId) {
       </div>
     `;
   }
+}
+
+// ===== Copiar resumen IA al portapapeles =====
+function copyAISummary() {
+  const summary = window._lastAISummary;
+  if (!summary) {
+    showToast('⚠️ No hay resumen para copiar', 'error');
+    return;
+  }
+  navigator.clipboard.writeText(summary).then(() => {
+    showToast('📋 Resumen copiado al portapapeles');
+  }).catch(() => {
+    showToast('❌ No se pudo copiar', 'error');
+  });
+}
+
+// ===== Descargar resumen IA como archivo de texto =====
+function downloadAISummary(sessionId) {
+  const summary = window._lastAISummary;
+  if (!summary) {
+    showToast('⚠️ No hay resumen para descargar', 'error');
+    return;
+  }
+  const session = Storage.getSession(sessionId);
+  const filename = `resumen-${(session?.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.md`;
+  const blob = new Blob([summary], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('💾 Resumen descargado');
 }
