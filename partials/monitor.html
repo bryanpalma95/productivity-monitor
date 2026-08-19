@@ -42,6 +42,13 @@
           <span></span><span></span><span></span><span></span><span></span>
         </div>
       </div>
+      <div class="audio-source-selector">
+        <label for="audioSource">Fuente de audio:</label>
+        <select id="audioSource" onchange="handleAudioSourceChange()">
+          <option value="mic">🎤 Micrófono</option>
+          <option value="system">🔊 Audio del sistema</option>
+        </select>
+      </div>
       <div class="monitor-controls">
         <button class="btn btn-primary" id="btnStartAudio" onclick="startAudioCapture()">
           <i class="fas fa-microphone"></i> Iniciar Audio
@@ -49,6 +56,9 @@
         <button class="btn btn-danger" id="btnStopAudio" onclick="stopAudioCapture()" style="display:none">
           <i class="fas fa-stop"></i> Detener
         </button>
+      </div>
+      <div class="audio-source-hint" id="audioSourceHint">
+        <i class="fas fa-info-circle"></i> <span>El micrófono usa reconocimiento de voz del navegador (Chrome/Edge).</span>
       </div>
     </div>
 

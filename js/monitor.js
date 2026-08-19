@@ -136,38 +136,155 @@ async function captureScreenshot() {
 }
 
 // ===== Audio y Transcripción =====
+function handleAudioSourceChange() {
+  const source = document.getElementById('audioSource').value;
+  const hint = document.getElementById('audioSourceHint');
+  const btnStart = document.getElementById('btnStartAudio');
+
+  if (source === 'system') {
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema requiere compartir pantalla con audio. Se transcribe usando IA (OmniRoute).</span>';
+    btnStart.innerHTML = '<i class="fas fa-volume-up"></i> Iniciar Audio del Sistema';
+  } else {
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El micrófono usa reconocimiento de voz del navegador (Chrome/Edge).</span>';
+    btnStart.innerHTML = '<i class="fas fa-microphone"></i> Iniciar Audio';
+  }
+}
+
 async function startAudioCapture() {
   if (App.privacyMode) {
     showToast('🔒 Modo privacidad activado. Desactívalo para monitorear.', 'error');
     return;
   }
 
+  const source = document.getElementById('audioSource').value;
+
   try {
-    App.audioStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
+    if (source === 'system') {
+      // Audio del sistema: requiere captura de pantalla con audio
+      if (!App.screenStream) {
+        showToast('⚠️ Primero comparte tu pantalla con audio para capturar el audio del sistema.', 'error');
+        return;
       }
-    });
 
-    setupAudioVisualizer();
-    startSpeechRecognition();
+      const audioTracks = App.screenStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        showToast('⚠️ La captura de pantalla no incluye audio. Vuelve a compartir pantalla marcando la opción de audio.', 'error');
+        return;
+      }
 
-    document.getElementById('btnStartAudio').style.display = 'none';
-    document.getElementById('btnStopAudio').style.display = 'inline-flex';
+      App.audioStream = new MediaStream(audioTracks);
+      setupAudioVisualizer();
+      startSystemAudioTranscription();
 
-    const status = document.getElementById('audioStatus');
-    status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando</span>';
+      document.getElementById('btnStartAudio').style.display = 'none';
+      document.getElementById('btnStopAudio').style.display = 'inline-flex';
 
-    showToast('🎤 Audio y transcripción iniciados');
+      const status = document.getElementById('audioStatus');
+      status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando sistema</span>';
+
+      showToast('🔊 Audio del sistema y transcripción iniciados');
+    } else {
+      // Micrófono: usa getUserMedia + SpeechRecognition
+      App.audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      setupAudioVisualizer();
+      startSpeechRecognition();
+
+      document.getElementById('btnStartAudio').style.display = 'none';
+      document.getElementById('btnStopAudio').style.display = 'inline-flex';
+
+      const status = document.getElementById('audioStatus');
+      status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando</span>';
+
+      showToast('🎤 Audio y transcripción iniciados');
+    }
   } catch (err) {
     console.error('Error al iniciar audio:', err);
     if (err.name === 'NotAllowedError') {
       showToast('❌ Permiso de micrófono denegado. Habilítalo en la configuración del navegador.', 'error');
     } else {
-      showToast('❌ No se pudo acceder al micrófono', 'error');
+      showToast('❌ No se pudo acceder al audio', 'error');
     }
+  }
+}
+
+// ===== Transcripción del Audio del Sistema (via OmniRoute) =====
+function startSystemAudioTranscription() {
+  // Verificar si hay una sesión activa
+  if (!App.currentSession) {
+    showToast('⚠️ Inicia una sesión primero para transcribir el audio del sistema.', 'error');
+    return;
+  }
+
+  const transcriptStatus = document.getElementById('transcriptStatus');
+  transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Transcribiendo (IA)...</span>';
+
+  // Intervalo de transcripción cada 15 segundos
+  clearInterval(App.systemTranscriptionInterval);
+  App.systemTranscriptionInterval = setInterval(() => {
+    if (App.audioStream && App.currentSession) {
+      transcribeSystemAudioChunk();
+    }
+  }, 15000);
+}
+
+async function transcribeSystemAudioChunk() {
+  if (!App.audioStream || !App.currentSession) return;
+
+  try {
+    // Capturar un chunk de audio del stream
+    const mediaRecorder = new MediaRecorder(App.audioStream);
+    const chunks = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      if (chunks.length === 0) return;
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+
+      // Enviar a la API de transcripción de OmniRoute
+      const formData = new FormData();
+      formData.append('file', blob, 'audio.webm');
+      formData.append('model', 'af/whisper-1');
+
+      try {
+        const response = await fetch('https://omniroute.vercel.app/api/audio', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          console.warn('Transcripción falló:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+        const text = data.text || data.transcript || '';
+
+        if (text && text.trim()) {
+          addTranscriptEntry(text.trim());
+        }
+      } catch (err) {
+        console.error('Error en transcripción:', err);
+      }
+    };
+
+    mediaRecorder.start();
+    setTimeout(() => {
+      if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    }, 10000);
+  } catch (err) {
+    console.error('Error capturando audio del sistema:', err);
   }
 }
 
@@ -176,6 +293,10 @@ function stopAudioCapture() {
     App.audioStream.getTracks().forEach(t => t.stop());
     App.audioStream = null;
   }
+
+  // Detener transcripción del audio del sistema
+  clearInterval(App.systemTranscriptionInterval);
+  App.systemTranscriptionInterval = null;
 
   if (App.recognition) {
     App.recognition.stop();

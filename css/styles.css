@@ -410,6 +410,59 @@ input:checked + .slider:before {
   font-style: italic;
 }
 
+/* ===== Audio Source Selector ===== */
+.audio-source-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.audio-source-selector label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.audio-source-selector select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+
+.audio-source-selector select option {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+.audio-source-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(124, 77, 255, 0.08);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.audio-source-hint i {
+  color: var(--primary);
+  margin-top: 2px;
+}
+
 /* ===== Monitor ===== */
 .monitor-container {
   display: grid;
