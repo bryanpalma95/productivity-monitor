@@ -1,6 +1,6 @@
 /* ============================================================
-   Productivity Monitor - Service Worker v2.1.0
-   Cache offline para PWA
+   Productivity Monitor - Service Worker v2.3.0
+   Cache offline para PWA — JS/HTML usan network-first
    ============================================================ */
 
 const CACHE_NAME = 'productivity-monitor-v2.3.0';
@@ -18,6 +18,8 @@ const CORE_ASSETS = [
   './js/reports.js',
   './js/init.js',
   './js/app.js',
+  './js/firebase-config.js',
+  './js/firebase.js',
   './partials/header.html',
   './partials/dashboard.html',
   './partials/monitor.html',
@@ -37,7 +39,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activación: limpiar caches viejos
+// Activación: limpiar caches viejos y tomar control inmediatamente
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -48,21 +50,54 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: estrategia cache-first con fallback a red
+// Fetch: network-first para JS/HTML (siempre código fresco), cache-first para assets estáticos
 self.addEventListener('fetch', (event) => {
-  // No interceptar peticiones a APIs externas
-  if (event.request.url.includes('omniroute') || event.request.url.includes('fonts.googleapis') || event.request.url.includes('cdnjs')) {
+  const url = event.request.url;
+
+  // No interceptar peticiones a APIs externas ni Firebase
+  if (
+    url.includes('omniroute') ||
+    url.includes('fonts.googleapis') ||
+    url.includes('cdnjs') ||
+    url.includes('gstatic.com') ||
+    url.includes('firebaseapp') ||
+    url.includes('googleapis.com')
+  ) {
     return;
   }
 
+  // Network-first para JS, HTML y partials: siempre intentar red primero
+  const isCodeFile = url.endsWith('.js') || url.endsWith('.html') || url.includes('/partials/');
+
+  if (isCodeFile) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Actualizar caché con la versión más nueva
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Sin red: servir desde caché como fallback offline
+          return caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            if (event.request.mode === 'navigate') return caches.match('./index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first para CSS, imágenes, fuentes y otros assets estáticos
   event.respondWith(
     caches.match(event.request)
       .then((cached) => {
         if (cached) return cached;
-
         return fetch(event.request)
           .then((response) => {
-            // Cachear solo respuestas válidas
             if (response && response.status === 200 && response.type === 'basic') {
               const clone = response.clone();
               caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
@@ -70,10 +105,7 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Fallback offline para navegación
-            if (event.request.mode === 'navigate') {
-              return caches.match('./index.html');
-            }
+            if (event.request.mode === 'navigate') return caches.match('./index.html');
           });
       })
   );
