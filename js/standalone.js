@@ -9,6 +9,7 @@ const App = {
   sessions: [],
   currentSession: null,
   screenStream: null,
+  systemAudioStream: null,
   audioStream: null,
   recognition: null,
   transcriptBuffer: [],
@@ -400,8 +401,14 @@ async function startScreenCapture() {
   try {
     App.screenStream = await navigator.mediaDevices.getDisplayMedia({
       video: { frameRate: 5 },
-      audio: false
+      audio: true
     });
+
+    // Separar el audio del sistema del stream de pantalla
+    const audioTracks = App.screenStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      App.systemAudioStream = new MediaStream(audioTracks);
+    }
 
     const video = document.createElement('video');
     video.srcObject = App.screenStream;
@@ -445,6 +452,12 @@ function stopScreenCapture() {
   if (App.screenStream) {
     App.screenStream.getTracks().forEach(t => t.stop());
     App.screenStream = null;
+  }
+
+  // Detener también el audio del sistema capturado
+  if (App.systemAudioStream) {
+    App.systemAudioStream.getTracks().forEach(t => t.stop());
+    App.systemAudioStream = null;
   }
 
   clearInterval(App.screenshotInterval);
@@ -985,4 +998,817 @@ function filterSessions() {
           <i class="fas fa-edit"></i> Editar
         </button>
         <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteSession('${s.id}')">
-          <i class="fas fa
+          <i class="fas fa-trash"></i> Eliminar
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteSession(sessionId) {
+  if (confirm('¿Seguro que quieres eliminar esta sesión?')) {
+    Storage.deleteSession(sessionId);
+    loadSessions();
+    loadDashboard();
+    showToast('🗑️ Sesión eliminada');
+  }
+}
+
+// ===== Edición de sesión =====
+function editSession(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+
+  title.textContent = 'Editar Sesión';
+  body.innerHTML = `
+    <div class="edit-session">
+      <div class="form-group">
+        <label for="editTitle">Título</label>
+        <input type="text" id="editTitle" value="${escapeHtml(session.title)}">
+      </div>
+      <div class="form-group">
+        <label for="editType">Tipo</label>
+        <select id="editType">
+          <option value="work" ${session.type === 'work' ? 'selected' : ''}>Trabajo</option>
+          <option value="meeting" ${session.type === 'meeting' ? 'selected' : ''}>Reunión</option>
+          <option value="individual" ${session.type === 'individual' ? 'selected' : ''}>Individual</option>
+          <option value="study" ${session.type === 'study' ? 'selected' : ''}>Estudio</option>
+        </select>
+      </div>
+      <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px">
+        <button class="btn btn-success" onclick="saveSessionEdit('${session.id}')">
+          <i class="fas fa-save"></i> Guardar
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal()">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
+function saveSessionEdit(sessionId) {
+  const title = document.getElementById('editTitle').value.trim();
+  const type = document.getElementById('editType').value;
+
+  if (!title) {
+    showToast('⚠️ El título no puede estar vacío', 'error');
+    return;
+  }
+
+  Storage.updateSession(sessionId, { title, type });
+  closeModal();
+  loadSessions();
+  loadDashboard();
+  showToast('✅ Sesión actualizada');
+}
+
+// ===== Detalles de sesión =====
+function viewSessionDetails(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+
+  title.textContent = session.title;
+
+  const transcripts = session.transcripts || [];
+  const screenshots = session.screenshots || [];
+
+  body.innerHTML = `
+    <div class="session-detail">
+      <div class="session-detail-header">
+        <span class="session-type-badge ${session.type}">${getTypeLabel(session.type)}</span>
+        <span class="session-status ${session.status}">${session.status === 'active' ? '● Activa' : '✓ Terminada'}</span>
+      </div>
+      <div class="session-detail-meta">
+        <p><i class="fas fa-calendar"></i> Inicio: ${formatDateTime(session.startedAt)}</p>
+        ${session.endedAt ? `<p><i class="fas fa-calendar-check"></i> Fin: ${formatDateTime(session.endedAt)}</p>` : ''}
+        <p><i class="fas fa-clock"></i> Duración: ${formatDuration(session.duration || 0)}</p>
+      </div>
+
+      <div class="export-actions">
+        <button class="btn btn-primary" onclick="generateAISummary('${session.id}')">
+          <i class="fas fa-robot"></i> Resumen IA
+        </button>
+        <button class="btn btn-secondary" onclick="exportReportPDF('${session.id}')">
+          <i class="fas fa-file-pdf"></i> PDF
+        </button>
+        <button class="btn btn-secondary" onclick="exportReportExcel('${session.id}')">
+          <i class="fas fa-file-excel"></i> Excel
+        </button>
+        <button class="btn btn-secondary" onclick="exportScreenshots('${session.id}')">
+          <i class="fas fa-images"></i> Capturas
+        </button>
+      </div>
+
+      <h4><i class="fas fa-comment-dots"></i> Transcripciones (${transcripts.length})</h4>
+
+      ${transcripts.length === 0 ? '<p class="empty-state">Sin transcripciones</p>' : `
+        <div class="transcript-list">
+          ${transcripts.map(t => `
+            <div class="transcript-entry">
+              <span class="transcript-time">${formatTime(t.timestamp)}</span>
+              <span class="transcript-text">${escapeHtml(t.text)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `}
+
+      <h4><i class="fas fa-camera"></i> Capturas (${screenshots.length})</h4>
+      ${screenshots.length === 0 ? '<p class="empty-state">Sin capturas</p>' : `
+        <div class="screenshot-grid">
+          ${screenshots.slice(-6).map(s => `
+            <div class="screenshot-thumb">
+              <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}" onclick="window.open(this.src)">
+              <span>${formatTime(s.timestamp)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('reportModal').style.display = 'none';
+}
+
+// ===== Exportar capturas =====
+function exportScreenshots(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const screenshots = session.screenshots || [];
+  if (screenshots.length === 0) {
+    showToast('⚠️ No hay capturas para exportar', 'error');
+    return;
+  }
+
+  // Crear un HTML con todas las capturas para imprimir/guardar
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Capturas - ${session.title}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #1a73e8; }
+        .screenshot { margin: 20px 0; page-break-inside: avoid; }
+        .screenshot img { max-width: 100%; border: 1px solid #ddd; border-radius: 5px; }
+        .screenshot .time { color: #666; font-size: 12px; margin-top: 5px; }
+      </style>
+    </head>
+    <body>
+      <h1>Capturas de Sesión</h1>
+      <p><strong>${session.title}</strong> - ${formatDateTime(session.startedAt)}</p>
+      ${screenshots.map(s => `
+        <div class="screenshot">
+          <img src="${s.dataUrl}" alt="Captura">
+          <div class="time">${formatDateTime(s.timestamp)}</div>
+        </div>
+      `).join('')}
+    </body>
+    </html>
+  `;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+// ===== Reportes =====
+function loadReports() {
+  const sessions = Storage.getSessions();
+  const container = document.getElementById('reports-list');
+
+  if (sessions.length === 0) {
+    container.innerHTML = '<p class="empty-state">No hay sesiones para generar reportes.</p>';
+    return;
+  }
+
+  container.innerHTML = sessions.map(s => `
+    <div class="report-item">
+      <div class="report-item-header">
+        <span class="session-type-badge ${s.type}">${getTypeLabel(s.type)}</span>
+        <span class="session-date">${formatDateTime(s.startedAt)}</span>
+      </div>
+      <div class="report-item-title">${escapeHtml(s.title)}</div>
+      <div class="report-item-meta">
+        <span><i class="fas fa-clock"></i> ${formatDuration(s.duration || 0)}</span>
+        <span><i class="fas fa-comment-dots"></i> ${s.transcripts ? s.transcripts.length : 0} transcripciones</span>
+      </div>
+      <div class="report-item-actions">
+        <button class="btn btn-sm btn-primary" onclick="generateReport('${s.id}')">
+          <i class="fas fa-file-alt"></i> Generar Reporte
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="exportReportPDF('${s.id}')">
+          <i class="fas fa-file-pdf"></i> PDF
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="exportReportExcel('${s.id}')">
+          <i class="fas fa-file-excel"></i> Excel
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function generateReport(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+
+  title.textContent = 'Reporte de Sesión';
+
+  const transcripts = session.transcripts || [];
+  const screenshots = session.screenshots || [];
+
+  body.innerHTML = `
+    <div class="report-content">
+      <h3>${escapeHtml(session.title)}</h3>
+      <p><strong>Tipo:</strong> ${getTypeLabel(session.type)}</p>
+      <p><strong>Inicio:</strong> ${formatDateTime(session.startedAt)}</p>
+      ${session.endedAt ? `<p><strong>Fin:</strong> ${formatDateTime(session.endedAt)}</p>` : ''}
+      <p><strong>Duración:</strong> ${formatDuration(session.duration || 0)}</p>
+      <p><strong>Transcripciones:</strong> ${transcripts.length}</p>
+      <p><strong>Capturas:</strong> ${screenshots.length}</p>
+
+      <h4>Transcripciones</h4>
+      ${transcripts.length === 0 ? '<p class="empty-state">Sin transcripciones</p>' : `
+        <div class="transcript-list">
+          ${transcripts.map(t => `
+            <div class="transcript-entry">
+              <span class="transcript-time">${formatTime(t.timestamp)}</span>
+              <span class="transcript-text">${escapeHtml(t.text)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+function generateFullReport() {
+  const sessions = Storage.getSessions();
+  if (sessions.length === 0) {
+    showToast('⚠️ No hay sesiones para generar un reporte completo', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+
+  title.textContent = 'Reporte Completo';
+
+  let totalMs = 0;
+  let totalTranscripts = 0;
+  let totalScreenshots = 0;
+
+  sessions.forEach(s => {
+    if (s.duration) totalMs += s.duration;
+    if (s.transcripts) totalTranscripts += s.transcripts.length;
+    if (s.screenshots) totalScreenshots += s.screenshots.length;
+  });
+
+  body.innerHTML = `
+    <div class="report-content">
+      <h3>Resumen General</h3>
+      <p><strong>Sesiones:</strong> ${sessions.length}</p>
+      <p><strong>Tiempo total:</strong> ${formatDuration(totalMs)}</p>
+      <p><strong>Transcripciones:</strong> ${totalTranscripts}</p>
+      <p><strong>Capturas:</strong> ${totalScreenshots}</p>
+
+      <h4>Sesiones</h4>
+      ${sessions.map(s => `
+        <div class="report-session">
+          <strong>${escapeHtml(s.title)}</strong> - ${getTypeLabel(s.type)} - ${formatDuration(s.duration || 0)}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+}
+
+// ===== Exportar PDF =====
+function exportReportPDF(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const transcripts = session.transcripts || [];
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Reporte - ${session.title}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #1a73e8; }
+        h2 { color: #333; border-bottom: 2px solid #1a73e8; padding-bottom: 5px; }
+        .meta { color: #666; margin-bottom: 20px; }
+        .transcript { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+        .time { color: #999; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <h1>Reporte de Sesión</h1>
+      <div class="meta">
+        <p><strong>${session.title}</strong></p>
+        <p>Tipo: ${getTypeLabel(session.type)}</p>
+        <p>Inicio: ${formatDateTime(session.startedAt)}</p>
+        ${session.endedAt ? `<p>Fin: ${formatDateTime(session.endedAt)}</p>` : ''}
+        <p>Duración: ${formatDuration(session.duration || 0)}</p>
+      </div>
+      <h2>Transcripciones (${transcripts.length})</h2>
+      ${transcripts.length === 0 ? '<p>Sin transcripciones</p>' : transcripts.map(t => `
+        <div class="transcript">
+          <div class="time">${formatDateTime(t.timestamp)}</div>
+          <div>${escapeHtml(t.text)}</div>
+        </div>
+      `).join('')}
+    </body>
+    </html>
+  `;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+// ===== Exportar Excel =====
+function exportReportExcel(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const transcripts = session.transcripts || [];
+
+  let csv = 'Tiempo,Transcripción\n';
+  transcripts.forEach(t => {
+    const time = formatDateTime(t.timestamp);
+    const text = t.text.replace(/"/g, '""');
+    csv += `"${time}","${text}"\n`;
+  });
+
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `reporte_${session.title.replace(/[^a-z0-9]/gi, '_')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📊 Reporte Excel exportado');
+}
+
+// ===== Exportar todos los datos =====
+function exportAllData() {
+  const data = Storage.load();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `productivity_monitor_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('💾 Datos exportados');
+}
+
+function exportJSON() {
+  exportAllData();
+}
+
+// ===== Resumen IA =====
+async function callOmniRoute(messages) {
+  try {
+    const response = await fetch('https://omniroute.vercel.app/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
+    });
+    if (!response.ok) throw new Error('Error en la API');
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || data.content || '';
+  } catch (err) {
+    console.error('Error llamando a OmniRoute:', err);
+    throw err;
+  }
+}
+
+function splitTranscriptIntoChunks(transcripts, chunkSize = 3000) {
+  const chunks = [];
+  let current = '';
+  transcripts.forEach(t => {
+    const text = `${formatTime(t.timestamp)}: ${t.text}\n`;
+    if ((current + text).length > chunkSize && current) {
+      chunks.push(current);
+      current = text;
+    } else {
+      current += text;
+    }
+  });
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+async function generateAISummary(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+
+  title.textContent = 'Resumen IA';
+  body.innerHTML = `
+    <div class="ai-summary">
+      <p class="empty-state"><i class="fas fa-spinner fa-spin"></i> Generando resumen con IA...</p>
+    </div>
+  `;
+  modal.style.display = 'flex';
+
+  try {
+    const transcripts = session.transcripts || [];
+    if (transcripts.length === 0) {
+      body.innerHTML = '<p class="empty-state">No hay transcripciones para resumir.</p>';
+      return;
+    }
+
+    const chunks = splitTranscriptIntoChunks(transcripts);
+    const summaries = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      const messages = [
+        {
+          role: 'system',
+          content: 'Eres un asistente que resume reuniones y sesiones de trabajo en español. Sé conciso y estructurado.'
+        },
+        {
+          role: 'user',
+          content: `Resume la siguiente parte (${i + 1}/${chunks.length}) de la sesión "${session.title}" (${getTypeLabel(session.type)}):\n\n${chunks[i]}`
+        }
+      ];
+      const summary = await callOmniRoute(messages);
+      summaries.push(summary);
+    }
+
+    const fullSummary = summaries.join('\n\n---\n\n');
+    renderAISummaryResult(body, sessionId, fullSummary);
+  } catch (err) {
+    console.error('Error generando resumen:', err);
+    body.innerHTML = `
+      <p class="empty-state">❌ Error al generar el resumen. Intenta nuevamente.</p>
+      <button class="btn btn-primary" onclick="generateAISummary('${sessionId}')">
+        <i class="fas fa-redo"></i> Reintentar
+      </button>
+    `;
+  }
+}
+
+function renderAISummaryResult(body, sessionId, summary) {
+  body.innerHTML = `
+    <div class="ai-summary">
+      <div class="ai-summary-content">
+        ${summary.split('\n').map(line => {
+          if (line.startsWith('#')) {
+            const level = line.match(/^#+/)[0].length;
+            const text = line.replace(/^#+\s*/, '');
+            return `<h${Math.min(level, 4)}>${escapeHtml(text)}</h${Math.min(level, 4)}>`;
+          }
+          if (line.trim() === '') return '<br>';
+          if (line.startsWith('- ') || line.startsWith('* ')) {
+            return `<li>${escapeHtml(line.slice(2))}</li>`;
+          }
+          return `<p>${escapeHtml(line)}</p>`;
+        }).join('')}
+      </div>
+      <div class="ai-summary-actions" style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="copyAISummary()">
+          <i class="fas fa-copy"></i> Copiar
+        </button>
+        <button class="btn btn-secondary" onclick="downloadAISummary('${sessionId}')">
+          <i class="fas fa-download"></i> Descargar
+        </button>
+        <button class="btn btn-primary" onclick="generateAISummary('${sessionId}')">
+          <i class="fas fa-redo"></i> Regenerar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function copyAISummary() {
+  const content = document.querySelector('.ai-summary-content');
+  if (!content) return;
+  const text = content.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 Resumen copiado al portapapeles');
+  });
+}
+
+function downloadAISummary(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+  const content = document.querySelector('.ai-summary-content');
+  if (!content) return;
+
+  const blob = new Blob([content.innerText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `resumen_${session.title.replace(/[^a-z0-9]/gi, '_')}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📄 Resumen descargado');
+}
+
+// ===== Gráficos del Dashboard =====
+function renderActivityChart() {
+  const container = document.getElementById('activity-chart');
+  if (!container) return;
+
+  const sessions = Storage.getSessions();
+  if (sessions.length === 0) {
+    container.innerHTML = '<p class="empty-state">Sin datos de actividad</p>';
+    return;
+  }
+
+  const days = [];
+  const now = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    days.push({
+      label: d.toLocaleDateString('es-ES', { weekday: 'short' }),
+      total: 0
+    });
+  }
+
+  sessions.forEach(s => {
+    const sDate = new Date(s.startedAt);
+    const day = days.find(d => {
+      const dd = new Date(sDate);
+      return dd.toDateString() === new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - days.indexOf(d))).toDateString();
+    });
+    if (day) day.total += s.duration || 0;
+  });
+
+  const maxTotal = Math.max(...days.map(d => d.total), 1);
+
+  container.innerHTML = `
+    <div class="bar-chart">
+      ${days.map(d => {
+        const height = Math.max(4, (d.total / maxTotal) * 120);
+        const hours = (d.total / 3600000).toFixed(1);
+        return `
+          <div class="bar-col">
+            <span class="bar-value">${d.total > 0 ? hours + 'h' : ''}</span>
+            <div class="bar" style="height:${height}px;background:var(--accent)" title="${hours}h"></div>
+            <span class="bar-label">${d.label}</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTypeChart() {
+  const container = document.getElementById('type-chart');
+  if (!container) return;
+
+  const sessions = Storage.getSessions();
+  if (sessions.length === 0) {
+    container.innerHTML = '<p class="empty-state">Sin datos de tipos</p>';
+    return;
+  }
+
+  const types = {};
+  sessions.forEach(s => {
+    const type = s.type || 'work';
+    types[type] = (types[type] || 0) + (s.duration || 0);
+  });
+
+  const total = Object.values(types).reduce((a, b) => a + b, 0) || 1;
+  const colors = { work: '#1a73e8', meeting: '#34a853', individual: '#fbbc04', study: '#ea4335' };
+
+  container.innerHTML = `
+    <div class="donut-chart">
+      ${Object.entries(types).map(([type, ms]) => {
+        const pct = Math.round((ms / total) * 100);
+        return `
+          <div class="donut-item">
+            <span class="donut-dot" style="background:${colors[type] || '#888'}"></span>
+            <span>${getTypeLabel(type)}</span>
+            <span class="donut-pct">${pct}%</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ===== Inicialización =====
+function initApp() {
+  setupNavigation();
+  setupPrivacyToggle();
+  setupGlobalSearch();
+  setupMobileMenu();
+  loadDashboard();
+  checkForActiveSession();
+  updateStorageIndicator();
+  registerServiceWorker();
+}
+
+function togglePrivacyMode() {
+  App.privacyMode = !App.privacyMode;
+  const btn = document.getElementById('privacyToggle');
+  if (btn) {
+    btn.classList.toggle('active', App.privacyMode);
+    btn.innerHTML = App.privacyMode
+      ? '<i class="fas fa-lock"></i> Privacidad ON'
+      : '<i class="fas fa-unlock"></i> Privacidad OFF';
+  }
+  showToast(App.privacyMode ? '🔒 Modo privacidad activado' : '🔓 Modo privacidad desactivado');
+}
+
+function clearAllData() {
+  if (confirm('¿Seguro que quieres borrar TODOS los datos? Esta acción no se puede deshacer.')) {
+    Storage.clearAll();
+    loadDashboard();
+    loadSessions();
+    loadReports();
+    showToast('🗑️ Todos los datos eliminados');
+  }
+}
+
+function importData() {
+  document.getElementById('importFile').click();
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.sessions) {
+        Storage.save(data);
+        loadDashboard();
+        loadSessions();
+        loadReports();
+        showToast('✅ Datos importados correctamente');
+      } else {
+        showToast('❌ Archivo inválido', 'error');
+      }
+    } catch (err) {
+      showToast('❌ Error al importar datos', 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function updateStorageIndicator() {
+  const indicator = document.getElementById('storageIndicator');
+  if (!indicator) return;
+
+  const usage = Storage.getUsagePercent();
+  const usageMB = (Storage.getUsage() / (1024 * 1024)).toFixed(2);
+  indicator.innerHTML = `
+    <i class="fas fa-database"></i>
+    <span>${usageMB} MB / 5 MB (${usage}%)</span>
+  `;
+}
+
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.error('Error registrando SW:', err);
+    });
+  }
+}
+
+// ===== Búsqueda global =====
+function globalSearch() {
+  const query = document.getElementById('globalSearchInput').value.trim();
+  if (!query) {
+    hideSearchResults();
+    return;
+  }
+  doSearch(query);
+}
+
+function hideSearchResults() {
+  const results = document.getElementById('searchResults');
+  if (results) results.style.display = 'none';
+}
+
+function doSearch(query) {
+  const sessions = Storage.getSessions();
+  const results = [];
+
+  sessions.forEach(s => {
+    if ((s.title || '').toLowerCase().includes(query.toLowerCase())) {
+      results.push({ session: s, type: 'title', text: s.title });
+    }
+    (s.transcripts || []).forEach(t => {
+      if (t.text.toLowerCase().includes(query.toLowerCase())) {
+        results.push({ session: s, type: 'transcript', text: t.text });
+      }
+    });
+  });
+
+  const container = document.getElementById('searchResults');
+  if (!container) return;
+
+  if (results.length === 0) {
+    container.innerHTML = '<p class="empty-state">Sin resultados</p>';
+  } else {
+    container.innerHTML = results.slice(0, 10).map(r => `
+      <div class="search-result" onclick="viewSessionDetails('${r.session.id}')">
+        <div class="search-result-title">${highlightMatch(r.session.title, query)}</div>
+        <div class="search-result-text">${highlightMatch(r.text, query)}</div>
+        <div class="search-result-meta">${formatDateTime(r.session.startedAt)}</div>
+      </div>
+    `).join('');
+  }
+  container.style.display = 'block';
+}
+
+function highlightMatch(text, query) {
+  if (!text || !query) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const escapedQuery = escapeHtml(query);
+  const regex = new RegExp(`(${escapedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return escaped.replace(regex, '<mark>$1</mark>');
+}
+
+function exportBackup() {
+  exportAllData();
+}
+
+// ===== Navegación =====
+function setupNavigation() {
+  document.querySelectorAll('.nav-item, .bn-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const view = item.dataset.view;
+      if (view) switchView(view);
+    });
+  });
+}
+
+function setupPrivacyToggle() {
+  const btn = document.getElementById('privacyToggle');
+  if (btn) {
+    btn.addEventListener('click', togglePrivacyMode);
+  }
+}
+
+function setupGlobalSearch() {
+  const input = document.getElementById('globalSearchInput');
+  if (input) {
+    input.addEventListener('input', globalSearch);
+    input.addEventListener('blur', () => setTimeout(hideSearchResults, 200));
+  }
+}
+
+function setupMobileMenu() {
+  const btn = document.getElementById('mobileMenuBtn');
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      sidebar?.classList.add('open');
+      overlay?.classList.add('show');
+      document.body.style.overflow = 'hidden';
+    });
+  }
+  if (overlay) {
+    overlay.addEventListener('click', closeSidebar);
+  }
+}
+
+// Inicializar la app
+document.addEventListener('DOMContentLoaded', initApp);

@@ -13,8 +13,14 @@ async function startScreenCapture() {
   try {
     App.screenStream = await navigator.mediaDevices.getDisplayMedia({
       video: { frameRate: 5 },
-      audio: false
+      audio: true
     });
+
+    // Separar el audio del sistema del stream de pantalla
+    const audioTracks = App.screenStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      App.systemAudioStream = new MediaStream(audioTracks);
+    }
 
     const video = document.createElement('video');
     video.srcObject = App.screenStream;
@@ -58,6 +64,12 @@ function stopScreenCapture() {
   if (App.screenStream) {
     App.screenStream.getTracks().forEach(t => t.stop());
     App.screenStream = null;
+  }
+
+  // Detener también el audio del sistema capturado
+  if (App.systemAudioStream) {
+    App.systemAudioStream.getTracks().forEach(t => t.stop());
+    App.systemAudioStream = null;
   }
 
   clearInterval(App.screenshotInterval);

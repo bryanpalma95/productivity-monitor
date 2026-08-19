@@ -8,6 +8,7 @@ const App = {
   sessions: [],
   currentSession: null,
   screenStream: null,
+  systemAudioStream: null,
   audioStream: null,
   recognition: null,
   transcriptBuffer: [],
