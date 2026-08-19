@@ -13,6 +13,7 @@ const App = {
   recognition: null,
   transcriptBuffer: [],
   screenshotInterval: null,
+  systemTranscriptionInterval: null,
   audioContext: null,
   analyser: null,
   visualizerInterval: null,

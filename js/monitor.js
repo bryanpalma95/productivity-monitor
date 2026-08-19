@@ -218,21 +218,30 @@ async function startAudioCapture() {
 
 // ===== Transcripción del Audio del Sistema (via OmniRoute) =====
 function startSystemAudioTranscription() {
-  // Verificar si hay una sesión activa
-  if (!App.currentSession) {
-    showToast('⚠️ Inicia una sesión primero para transcribir el audio del sistema.', 'error');
-    return;
-  }
-
   const transcriptStatus = document.getElementById('transcriptStatus');
-  transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Transcribiendo (IA)...</span>';
+
+  // Si no hay sesión activa, seguir en modo "esperando sesión" — el intervalo
+  // verificará por sí mismo cuando haya sesión antes de grabar
+  if (!App.currentSession) {
+    transcriptStatus.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Esperando sesión...</span>';
+    showToast('ℹ️ Audio listo. La transcripción comenzará cuando inicies una sesión.', 'info');
+  } else {
+    transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Transcribiendo (IA)...</span>';
+  }
 
   // Intervalo de transcripción cada 15 segundos
   clearInterval(App.systemTranscriptionInterval);
   App.systemTranscriptionInterval = setInterval(() => {
-    if (App.audioStream && App.currentSession) {
-      transcribeSystemAudioChunk();
+    if (!App.audioStream) return;
+    if (!App.currentSession) return; // Esperar sesión sin detener el intervalo
+
+    // Actualizar status si estaba en "esperando"
+    const ts = document.getElementById('transcriptStatus');
+    if (ts && ts.querySelector('.idle')) {
+      ts.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Transcribiendo (IA)...</span>';
     }
+
+    transcribeSystemAudioChunk();
   }, 15000);
 }
 
@@ -431,6 +440,17 @@ function startSpeechRecognition() {
     console.error('Error de reconocimiento:', event.error);
     if (event.error === 'not-allowed') {
       showToast('❌ Permiso de micrófono denegado', 'error');
+      stopAudioCapture();
+    } else if (event.error === 'network') {
+      showToast('⚠️ Speech Recognition requiere conexión. Reintentando...', 'info');
+      // network error es transitorio — onend lo reiniciará
+    } else if (event.error === 'service-not-allowed') {
+      showToast('❌ El servicio de voz no está disponible en este navegador/dominio.', 'error');
+      stopAudioCapture();
+    } else if (event.error === 'no-speech') {
+      // No es error real, el navegador detectó silencio — onend reiniciará
+    } else {
+      console.warn('SpeechRecognition error:', event.error);
     }
   };
 
