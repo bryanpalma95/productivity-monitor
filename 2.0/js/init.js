@@ -5,8 +5,8 @@
 
 // ===== Inicialización =====
 function initApp() {
-  // Cargar dashboard por defecto
-  loadDashboard();
+  // Restaurar la vista que estaba activa antes de recargar (via hash)
+  restoreViewFromHash();
 
   // Verificar sesión activa
   setTimeout(checkForActiveSession, 500);

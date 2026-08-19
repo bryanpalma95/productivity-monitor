@@ -226,7 +226,17 @@ function switchView(viewName) {
     if (typeof initGroqKeyUI === 'function') initGroqKeyUI();
   }
 
+  // Persistir vista en el hash para sobrevivir recargas
+  history.replaceState(null, '', '#' + viewName);
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Restaura la vista desde el hash de la URL (si existe)
+function restoreViewFromHash() {
+  const valid = ['dashboard', 'monitor', 'sessions', 'reports', 'search', 'data'];
+  const hash = window.location.hash.replace('#', '');
+  switchView(valid.includes(hash) ? hash : 'dashboard');
 }
 
 function closeSidebar() {
