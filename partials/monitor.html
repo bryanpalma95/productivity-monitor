@@ -42,9 +42,11 @@
           <span></span><span></span><span></span><span></span><span></span>
         </div>
       </div>
+
+      <!-- Fuentes de audio -->
       <div class="audio-source-selector">
         <label style="font-weight:600;margin-bottom:8px;display:block">Fuentes de audio:</label>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
             <input type="checkbox" id="audioSourceMic" checked onchange="handleAudioSourceChange()">
             🎤 Micrófono
@@ -54,23 +56,20 @@
             🔊 Audio del sistema
           </label>
         </div>
-        <!-- Selector de dispositivo de sistema (visible solo si se activa el checkbox) -->
-        <div id="systemDeviceRow" style="display:none;margin-top:4px">
-          <label style="font-size:0.85rem;color:var(--text-secondary)">Dispositivo de entrada del sistema:</label>
-          <div style="display:flex;gap:6px;margin-top:4px">
-            <select id="systemAudioDevice" style="flex:1;font-size:0.85rem">
-              <option value="">Cargando dispositivos...</option>
-            </select>
-            <button class="btn btn-secondary btn-sm" onclick="refreshAudioDevices()" title="Actualizar lista">
-              <i class="fas fa-sync"></i>
-            </button>
-          </div>
-          <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px">
-            💡 Para capturar el audio del PC busca <strong>Stereo Mix</strong>, <strong>What U Hear</strong> o similar. 
-            Si no aparece, actívalo en <em>Panel de Control → Sonido → Grabación → clic derecho → Mostrar dispositivos deshabilitados</em>.
-          </p>
+
+        <!-- Instrucción contextual para audio del sistema -->
+        <div id="systemAudioInstructions" style="display:none;margin-top:10px;padding:10px;background:var(--bg-tertiary);border-radius:8px;border-left:3px solid var(--primary)">
+          <p style="font-size:0.85rem;margin:0 0 6px;font-weight:600"><i class="fas fa-info-circle"></i> Cómo capturar el audio del sistema:</p>
+          <ol style="font-size:0.82rem;color:var(--text-secondary);margin:0;padding-left:18px;line-height:1.9">
+            <li>Haz clic en <strong>"Iniciar Audio"</strong></li>
+            <li>En el diálogo del navegador, elige <strong>"Toda la pantalla"</strong> o <strong>"Ventana"</strong></li>
+            <li>Antes de confirmar, activa el checkbox <strong>"Compartir el audio del sistema"</strong> que aparece en la parte inferior del diálogo</li>
+            <li>Haz clic en <strong>"Compartir"</strong></li>
+          </ol>
+          <div id="systemAudioStatusMsg" style="margin-top:8px;font-size:0.82rem"></div>
         </div>
       </div>
+
       <div class="monitor-controls">
         <button class="btn btn-primary" id="btnStartAudio" onclick="startAudioCapture()">
           <i class="fas fa-microphone"></i> Iniciar Audio
@@ -80,7 +79,7 @@
         </button>
       </div>
       <div class="audio-source-hint" id="audioSourceHint">
-        <i class="fas fa-info-circle"></i> <span>Micrófono transcribe con Groq Whisper (o Speech API). Sistema: captura el sonido de tu PC.</span>
+        <i class="fas fa-info-circle"></i> <span>Selecciona las fuentes de audio que quieres capturar.</span>
       </div>
     </div>
 

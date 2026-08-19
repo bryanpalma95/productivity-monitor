@@ -201,52 +201,18 @@ async function captureScreenshot() {
 
 // ===== Audio y Transcripción =====
 
-// Enumerar dispositivos de entrada de audio disponibles
-async function refreshAudioDevices() {
-  const select = document.getElementById('systemAudioDevice');
-  if (!select) return;
-
-  try {
-    // Necesitamos permiso previo para ver los labels
-    await navigator.mediaDevices.getUserMedia({ audio: true }).then(s => s.getTracks().forEach(t => t.stop()));
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const audioInputs = devices.filter(d => d.kind === 'audioinput');
-
-    select.innerHTML = audioInputs.length === 0
-      ? '<option value="">No se encontraron dispositivos</option>'
-      : audioInputs.map(d =>
-          `<option value="${d.deviceId}">${d.label || 'Dispositivo ' + d.deviceId.slice(0, 6)}</option>`
-        ).join('');
-
-    // Intentar preseleccionar Stereo Mix / What U Hear / Loopback
-    const loopback = audioInputs.find(d =>
-      /stereo mix|what u hear|loopback|wave out|output|sistema|salida/i.test(d.label)
-    );
-    if (loopback) select.value = loopback.deviceId;
-
-  } catch (err) {
-    select.innerHTML = '<option value="">Error al listar dispositivos</option>';
-    console.error('Error enumerando dispositivos:', err);
-  }
-}
-
 function handleAudioSourceChange() {
   const hasMic = document.getElementById('audioSourceMic')?.checked;
   const hasSystem = document.getElementById('audioSourceSystem')?.checked;
   const hint = document.getElementById('audioSourceHint');
   const btnStart = document.getElementById('btnStartAudio');
-  const systemDeviceRow = document.getElementById('systemDeviceRow');
+  const sysInstructions = document.getElementById('systemAudioInstructions');
 
-  // Mostrar/ocultar selector de dispositivo del sistema
-  if (systemDeviceRow) {
-    systemDeviceRow.style.display = hasSystem ? 'block' : 'none';
-    if (hasSystem) refreshAudioDevices();
-  }
+  if (sysInstructions) sysInstructions.style.display = hasSystem ? 'block' : 'none';
 
   if (!hint || !btnStart) return;
-
   if (!hasMic && !hasSystem) {
-    hint.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> <span>Selecciona al menos una fuente de audio.</span>';
+    hint.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> <span>Selecciona al menos una fuente.</span>';
     btnStart.disabled = true;
     return;
   }
@@ -257,9 +223,7 @@ function handleAudioSourceChange() {
   if (hasMic) parts.push('🎤 Micrófono');
   if (hasSystem) parts.push('🔊 Sistema');
   let msg = parts.join(' + ') + '. ';
-  msg += hasMic
-    ? (hasGroq ? 'Transcripción vía Groq Whisper.' : 'Transcripción vía Speech API del navegador.')
-    : 'Solo captura del sistema.';
+  if (hasMic) msg += hasGroq ? 'Transcripción Groq Whisper.' : 'Transcripción Speech API.';
   hint.innerHTML = `<i class="fas fa-info-circle"></i> <span>${msg}</span>`;
 }
 
@@ -269,7 +233,7 @@ async function startAudioCapture() {
     return;
   }
 
-  const useMic = document.getElementById('audioSourceMic')?.checked ?? true;
+  const useMic    = document.getElementById('audioSourceMic')?.checked ?? true;
   const useSystem = document.getElementById('audioSourceSystem')?.checked ?? false;
 
   if (!useMic && !useSystem) {
@@ -278,46 +242,70 @@ async function startAudioCapture() {
   }
 
   try {
-    // ── Micrófono ──
+    // ── 1. Micrófono via getUserMedia ──
     if (useMic) {
       App.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
     }
 
-    // ── Audio del sistema via dispositivo de entrada (Stereo Mix, etc.) ──
+    // ── 2. Audio del sistema via getDisplayMedia (igual que videollamadas) ──
     if (useSystem) {
-      const deviceId = document.getElementById('systemAudioDevice')?.value;
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,          // requerido por la API, lo silenciamos enseguida
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            suppressLocalAudioPlayback: false  // Chrome 109+ — no suprimir el propio audio
+          }
+        });
 
-      if (!deviceId) {
-        showToast('⚠️ Selecciona un dispositivo de sistema en la lista.', 'error');
-        if (!useMic) return;
-      } else {
-        try {
-          const sysStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              deviceId: { exact: deviceId },
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false
-            }
+        // Detener la pista de video de inmediato (solo queremos el audio)
+        displayStream.getVideoTracks().forEach(t => t.stop());
+
+        const audioTracks = displayStream.getAudioTracks();
+        const statusMsg = document.getElementById('systemAudioStatusMsg');
+
+        if (audioTracks.length === 0) {
+          // El usuario no marcó "Compartir audio del sistema" en el diálogo
+          if (statusMsg) statusMsg.innerHTML =
+            '<span style="color:var(--warning)">⚠️ No se detectó audio del sistema. ' +
+            'Asegúrate de marcar <strong>"Compartir audio del sistema"</strong> en el diálogo antes de hacer clic en "Compartir".</span>';
+          showToast('⚠️ Sin audio del sistema — marca la opción en el diálogo del navegador', 'error');
+        } else {
+          App.systemAudioStream = new MediaStream(audioTracks);
+
+          // Escuchar si el usuario cierra el diálogo de compartir
+          audioTracks[0].addEventListener('ended', () => {
+            App.systemAudioStream = null;
+            const s = document.getElementById('audioStatus');
+            if (s) s.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Sistema detenido</span>';
           });
-          App.systemAudioStream = sysStream;
+
           startSystemAudioTranscription();
-          showToast('🔊 Audio del sistema capturado desde dispositivo de entrada');
-        } catch (sysErr) {
-          console.error('Error capturando audio del sistema:', sysErr);
-          showToast('⚠️ No se pudo acceder al dispositivo de sistema. Intenta con otro.', 'error');
-          if (!useMic) return;
+
+          if (statusMsg) statusMsg.innerHTML =
+            '<span style="color:var(--success)">✅ Audio del sistema capturado correctamente.</span>';
+          showToast('🔊 Audio del sistema capturado');
         }
+      } catch (sysErr) {
+        if (sysErr.name === 'NotAllowedError' || sysErr.name === 'AbortError') {
+          showToast('ℹ️ Diálogo de pantalla cancelado. Continuando solo con micrófono.', 'info');
+        } else {
+          console.error('Error getDisplayMedia:', sysErr);
+          showToast('⚠️ No se pudo abrir el diálogo de pantalla: ' + sysErr.message, 'error');
+        }
+        if (!useMic) return;
       }
     }
 
-    // Visualizador: usar mic si existe, si no el sistema
-    const streamForVisualizer = App.audioStream || App.systemAudioStream;
-    if (streamForVisualizer) setupAudioVisualizer(streamForVisualizer);
+    // ── 3. Visualizador — usar mic si existe, si no sistema ──
+    const vizStream = App.audioStream || App.systemAudioStream;
+    if (vizStream) setupAudioVisualizer(vizStream);
 
-    // Iniciar transcripción del mic
+    // ── 4. Transcripción del micrófono ──
     if (useMic && App.audioStream) startMicTranscription();
 
     document.getElementById('btnStartAudio').style.display = 'none';
@@ -326,17 +314,18 @@ async function startAudioCapture() {
     const statusParts = [];
     if (useMic && App.audioStream) statusParts.push('🎤 Mic');
     if (useSystem && App.systemAudioStream) statusParts.push('🔊 Sistema');
+
     document.getElementById('audioStatus').innerHTML =
       `<span class="status-badge active"><i class="fas fa-circle"></i> ${statusParts.join(' + ') || 'Grabando'}</span>`;
 
-    showToast('🎙️ Audio iniciado: ' + statusParts.join(' + '));
+    if (statusParts.length) showToast('🎙️ Audio: ' + statusParts.join(' + '));
 
   } catch (err) {
     console.error('Error al iniciar audio:', err);
     if (err.name === 'NotAllowedError') {
-      showToast('❌ Permiso denegado. Habilita el micrófono en la configuración del navegador.', 'error');
+      showToast('❌ Permiso denegado. Habilita el micrófono en tu navegador.', 'error');
     } else {
-      showToast('❌ No se pudo acceder al audio: ' + err.message, 'error');
+      showToast('❌ Error al iniciar audio: ' + err.message, 'error');
     }
   }
 }
