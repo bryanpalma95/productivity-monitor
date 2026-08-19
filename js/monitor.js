@@ -201,84 +201,98 @@ async function captureScreenshot() {
 
 // ===== Audio y Transcripción =====
 function handleAudioSourceChange() {
-  const source = document.getElementById('audioSource').value;
+  const hasMic = document.getElementById('audioSourceMic')?.checked;
+  const hasSystem = document.getElementById('audioSourceSystem')?.checked;
   const hint = document.getElementById('audioSourceHint');
   const btnStart = document.getElementById('btnStartAudio');
+  if (!hint || !btnStart) return;
 
-  if (source === 'system') {
-    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema captura el sonido pero no lo transcribe automáticamente. Usa el micrófono para transcripción en vivo.</span>';
-    btnStart.innerHTML = '<i class="fas fa-volume-up"></i> Iniciar Audio del Sistema';
-  } else {
-    const hasGroq = !!getGroqApiKey();
-    hint.innerHTML = hasGroq
-      ? '<i class="fas fa-check-circle" style="color:var(--success)"></i> <span>Groq Whisper configurado — transcripción precisa activa.</span>'
-      : '<i class="fas fa-info-circle"></i> <span>Sin API key de Groq — usando reconocimiento de voz del navegador. Configura Groq en <strong>Mis Datos</strong> para mejor precisión.</span>';
-    btnStart.innerHTML = '<i class="fas fa-microphone"></i> Iniciar Micrófono';
+  const parts = [];
+  if (hasMic) parts.push('🎤 Micrófono');
+  if (hasSystem) parts.push('🔊 Sistema');
+
+  if (!hasMic && !hasSystem) {
+    hint.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> <span>Selecciona al menos una fuente de audio.</span>';
+    btnStart.disabled = true;
+    return;
   }
+  btnStart.disabled = false;
+
+  const hasGroq = !!getGroqApiKey();
+  let msg = parts.join(' + ') + ' activos. ';
+  msg += hasMic
+    ? (hasGroq ? 'Transcripción vía Groq Whisper.' : 'Transcripción vía Speech API del navegador.')
+    : 'Solo captura de sistema (sin transcripción automática).';
+  hint.innerHTML = `<i class="fas fa-info-circle"></i> <span>${msg}</span>`;
 }
 
 async function startAudioCapture() {
   if (App.privacyMode) {
-    showToast('🔒 Modo privacidad activado. Desactívalo para monitorear.', 'error');
+    showToast('🔒 Modo privacidad activado.', 'error');
     return;
   }
 
-  const source = document.getElementById('audioSource').value;
+  const useMic = document.getElementById('audioSourceMic')?.checked ?? true;
+  const useSystem = document.getElementById('audioSourceSystem')?.checked ?? false;
+
+  if (!useMic && !useSystem) {
+    showToast('⚠️ Selecciona al menos una fuente de audio.', 'error');
+    return;
+  }
 
   try {
-    if (source === 'system') {
-      // Audio del sistema: requiere captura de pantalla con audio
-      if (!App.screenStream) {
-        showToast('⚠️ Primero comparte tu pantalla con audio para capturar el audio del sistema.', 'error');
-        return;
-      }
-
-      const audioTracks = App.screenStream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        showToast('⚠️ La captura de pantalla no incluye audio. Vuelve a compartir pantalla marcando la opción de audio.', 'error');
-        return;
-      }
-
-      // Clonar las pistas para que detener el audioStream NO afecte al screenStream
-      const clonedTracks = audioTracks.map(t => t.clone());
-      App.audioStream = new MediaStream(clonedTracks);
-      setupAudioVisualizer();
-      startSystemAudioTranscription();
-
-      document.getElementById('btnStartAudio').style.display = 'none';
-      document.getElementById('btnStopAudio').style.display = 'inline-flex';
-
-      const status = document.getElementById('audioStatus');
-      status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando sistema</span>';
-
-      showToast('🔊 Audio del sistema y transcripción iniciados');
-    } else {
-      // Micrófono: Web Speech API con reintentos automáticos
+    // ── Micrófono ──
+    if (useMic) {
       App.audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
-
-      setupAudioVisualizer();
-      startMicTranscription();
-
-      document.getElementById('btnStartAudio').style.display = 'none';
-      document.getElementById('btnStopAudio').style.display = 'inline-flex';
-
-      const status = document.getElementById('audioStatus');
-      status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando</span>';
-
-      showToast('🎤 Micrófono iniciado');
     }
+
+    // ── Audio del sistema ──
+    if (useSystem) {
+      if (!App.screenStream) {
+        showToast('⚠️ Primero comparte la pantalla (con la opción de audio activada) para capturar el audio del sistema.', 'error');
+        // Si el mic ya se inició, seguimos con solo mic
+        if (!useMic) return;
+      } else {
+        const systemTracks = App.screenStream.getAudioTracks();
+        if (systemTracks.length === 0) {
+          showToast('⚠️ La pantalla compartida no tiene audio. Vuelve a compartirla marcando "Compartir audio".', 'error');
+        } else {
+          // Clonar pistas para no afectar el screenStream
+          const cloned = systemTracks.map(t => t.clone());
+          App.systemAudioStream = new MediaStream(cloned);
+          startSystemAudioTranscription();
+        }
+      }
+    }
+
+    // Visualizador: usar el stream del mic si existe, si no usar el del sistema
+    const streamForVisualizer = App.audioStream || App.systemAudioStream;
+    if (streamForVisualizer) setupAudioVisualizer(streamForVisualizer);
+
+    // Iniciar transcripción del mic
+    if (useMic && App.audioStream) {
+      startMicTranscription();
+    }
+
+    document.getElementById('btnStartAudio').style.display = 'none';
+    document.getElementById('btnStopAudio').style.display = 'inline-flex';
+
+    const statusParts = [];
+    if (useMic && App.audioStream) statusParts.push('🎤 Mic');
+    if (useSystem && App.systemAudioStream) statusParts.push('🔊 Sistema');
+    const statusEl = document.getElementById('audioStatus');
+    statusEl.innerHTML = `<span class="status-badge active"><i class="fas fa-circle"></i> ${statusParts.join(' + ') || 'Grabando'}</span>`;
+
+    showToast('🎙️ Audio iniciado: ' + statusParts.join(' + '));
+
   } catch (err) {
     console.error('Error al iniciar audio:', err);
     if (err.name === 'NotAllowedError') {
-      showToast('❌ Permiso de micrófono denegado. Habilítalo en la configuración del navegador.', 'error');
+      showToast('❌ Permiso denegado. Habilita el micrófono en la configuración del navegador.', 'error');
     } else {
-      showToast('❌ No se pudo acceder al audio', 'error');
+      showToast('❌ No se pudo acceder al audio: ' + err.message, 'error');
     }
   }
 }
@@ -617,24 +631,23 @@ function stopAudioCapture() {
   }
   _systemMediaRecorder = null;
 
-  // Detener MediaRecorder del mic si existe
-  if (_micMediaRecorder && _micMediaRecorder.state !== 'inactive') {
-    try { _micMediaRecorder.stop(); } catch (e) {}
-  }
-  _micMediaRecorder = null;
-
-  // Detener SpeechRecognition y sus reintentos
+  // Detener SpeechRecognition y Groq con sus timers
   stopMicTranscription();
 
-  // Detener intervalos de transcripción del sistema
+  // Detener intervalo de transcripción del sistema
   clearInterval(App.systemTranscriptionInterval);
   App.systemTranscriptionInterval = null;
-  clearInterval(App.micTranscriptionInterval);
-  App.micTranscriptionInterval = null;
 
+  // Detener stream del micrófono
   if (App.audioStream) {
     App.audioStream.getTracks().forEach(t => t.stop());
     App.audioStream = null;
+  }
+
+  // Detener stream del sistema (clonado — seguro detenerlo sin afectar screenStream)
+  if (App.systemAudioStream) {
+    App.systemAudioStream.getTracks().forEach(t => t.stop());
+    App.systemAudioStream = null;
   }
 
   if (App.audioContext) {
@@ -659,15 +672,17 @@ function stopAudioCapture() {
   transcriptStatus.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Detenido</span>';
 }
 
-function setupAudioVisualizer() {
-  App.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+function setupAudioVisualizer(stream) {
+  // Usar el stream pasado como argumento, o App.audioStream como fallback
+  const src = stream || App.audioStream;
+  if (!src) return;
 
-  // En HTTPS/Chrome el AudioContext puede arrancar suspendido — reactivarlo
+  App.audioContext = new (window.AudioContext || window.webkitAudioContext)();
   if (App.audioContext.state === 'suspended') {
     App.audioContext.resume().catch(err => console.warn('AudioContext resume fallido:', err));
   }
 
-  const source = App.audioContext.createMediaStreamSource(App.audioStream);
+  const source = App.audioContext.createMediaStreamSource(src);
   App.analyser = App.audioContext.createAnalyser();
   App.analyser.fftSize = 256;
   source.connect(App.analyser);

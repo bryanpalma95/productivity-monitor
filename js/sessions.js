@@ -3,6 +3,38 @@
    Sesiones, edición, recuperación y detalles
    ============================================================ */
 
+// ===== Cronómetro de sesión =====
+let _sessionTimerInterval = null;
+
+function startSessionTimer(startedAt) {
+  clearInterval(_sessionTimerInterval);
+  const display = document.getElementById('sessionTimerDisplay');
+  const text = document.getElementById('sessionTimerText');
+  if (display) display.style.display = 'block';
+
+  function tick() {
+    const elapsed = Date.now() - startedAt;
+    const h = Math.floor(elapsed / 3600000);
+    const m = Math.floor((elapsed % 3600000) / 60000);
+    const s = Math.floor((elapsed % 60000) / 1000);
+    if (text) text.textContent =
+      String(h).padStart(2, '0') + ':' +
+      String(m).padStart(2, '0') + ':' +
+      String(s).padStart(2, '0');
+  }
+  tick();
+  _sessionTimerInterval = setInterval(tick, 1000);
+}
+
+function stopSessionTimer() {
+  clearInterval(_sessionTimerInterval);
+  _sessionTimerInterval = null;
+  const display = document.getElementById('sessionTimerDisplay');
+  if (display) display.style.display = 'none';
+  const text = document.getElementById('sessionTimerText');
+  if (text) text.textContent = '00:00:00';
+}
+
 // ===== Sesiones =====
 async function startSession() {
   if (App.privacyMode) {
@@ -35,6 +67,7 @@ async function startSession() {
   document.getElementById('btnEndSession').style.display = 'inline-flex';
   document.getElementById('btnGenerateReport').style.display = 'inline-flex';
 
+  startSessionTimer(session.startedAt);
   showRecordingIndicator();
 
   if (!App.screenStream) {
@@ -77,6 +110,7 @@ function endSession() {
   App.isRecording = false;
 
   clearActiveSessionMeta();
+  stopSessionTimer();
 
   document.getElementById('btnStartSession').style.display = 'inline-flex';
   document.getElementById('btnEndSession').style.display = 'none';
@@ -164,6 +198,7 @@ function resumeActiveSession(sessionId) {
   document.getElementById('btnGenerateReport').style.display = 'inline-flex';
 
   showRecordingIndicator();
+  startSessionTimer(session.startedAt);
   closeModal();
 
   if (!App.screenStream) {
