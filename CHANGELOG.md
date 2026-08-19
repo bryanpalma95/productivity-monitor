@@ -5,6 +5,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [3.0.4] - 2026-08-19
+
+### Fixed
+- Modelo Groq corregido de `qwen/qwen3` (ID inválido) a `gemma2-9b-it`
+- `gemma2-9b-it` es el modelo liviano activo en Groq, ideal para resumir texto
+
+---
+
 ## [3.0.3] - 2026-08-19
 
 ### Fixed
