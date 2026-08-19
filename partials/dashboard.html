@@ -1,0 +1,87 @@
+<!-- Dashboard View -->
+<section class="view active" id="view-dashboard">
+  <div class="view-header">
+    <h2>Dashboard</h2>
+    <p>Resumen de tu actividad y productividad</p>
+  </div>
+
+  <div class="storage-info">
+    <i class="fas fa-cloud"></i>
+    <span>Los datos se guardan <strong>localmente en tu navegador</strong>. Nada se envía a servidores externos.</span>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-box blue">
+      <div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div class="stat-value" id="stat-duration">0h</div>
+      <div class="stat-label">Tiempo Total</div>
+    </div>
+    <div class="stat-box green">
+      <div class="stat-icon"><i class="fas fa-video"></i></div>
+      <div class="stat-value" id="stat-sessions">0</div>
+      <div class="stat-label">Sesiones</div>
+    </div>
+    <div class="stat-box purple">
+      <div class="stat-icon"><i class="fas fa-microphone"></i></div>
+      <div class="stat-value" id="stat-transcripts">0</div>
+      <div class="stat-label">Transcripciones</div>
+    </div>
+    <div class="stat-box orange">
+      <div class="stat-icon"><i class="fas fa-camera"></i></div>
+      <div class="stat-value" id="stat-screenshots">0</div>
+      <div class="stat-label">Capturas</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-bolt"></i> Inicio Rápido</h3>
+    <div class="quick-actions">
+      <button class="btn btn-primary btn-lg" onclick="switchView('monitor')">
+        <i class="fas fa-play"></i> Iniciar Monitoreo
+      </button>
+      <button class="btn btn-secondary btn-lg" onclick="switchView('reports')">
+        <i class="fas fa-file-alt"></i> Ver Reportes
+      </button>
+      <button class="btn btn-secondary btn-lg" onclick="switchView('search')">
+        <i class="fas fa-search"></i> Buscar Actividad
+      </button>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <div class="card">
+      <h3><i class="fas fa-chart-bar"></i> Actividad por Día</h3>
+      <div id="activity-chart" class="chart-container">
+        <p class="empty-state">Inicia sesiones para ver tu actividad</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><i class="fas fa-chart-pie"></i> Distribución por Tipo</h3>
+      <div id="type-chart" class="chart-container">
+        <p class="empty-state">Inicia sesiones para ver la distribución</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><i class="fas fa-trophy"></i> Puntaje de Productividad</h3>
+      <div id="productivity-score" class="chart-container">
+        <p class="empty-state">Inicia sesiones para calcular tu puntaje</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><i class="fas fa-chart-line"></i> Tendencia Semanal</h3>
+      <div id="weekly-trend" class="chart-container">
+        <p class="empty-state">Inicia sesiones para ver tu tendencia</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-history"></i> Sesiones Recientes</h3>
+    <div id="recent-sessions" class="session-list">
+      <p class="empty-state">No hay sesiones registradas aún.</p>
+    </div>
+  </div>
+</section>

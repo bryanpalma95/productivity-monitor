@@ -1,0 +1,120 @@
+<div class="app">
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <button class="mh-menu-btn" id="mhMenuBtn" aria-label="Abrir menú">
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="mh-logo"><i class="fas fa-chart-line"></i></div>
+    <div class="mh-title">
+      <h1>Productivity Monitor</h1>
+      <span>v2.1.0</span>
+    </div>
+    <div class="mh-status">
+      <span class="status-dot"></span>
+      <span>En línea</span>
+    </div>
+    <button class="mh-data-btn" onclick="switchView('data')" aria-label="Mis datos">
+      <i class="fas fa-database"></i>
+    </button>
+  </header>
+
+  <!-- Overlay para cerrar el menú lateral en móvil -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><i class="fas fa-chart-line"></i></div>
+      <div class="logo-text">
+        <h1>Productivity Monitor</h1>
+        <span class="version">v2.1.0</span>
+      </div>
+    </div>
+
+    <!-- Buscador global -->
+    <div class="global-search">
+      <input type="text" id="globalSearch" placeholder="🔍 Buscar en sesiones y transcripciones..." autocomplete="off">
+      <div id="searchResults" class="search-results-dropdown"></div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="nav-icon"><i class="fas fa-home"></i></span> Dashboard
+      </button>
+      <button class="nav-item" data-view="monitor">
+        <span class="nav-icon"><i class="fas fa-video"></i></span> Monitoreo
+      </button>
+      <button class="nav-item" data-view="sessions">
+        <span class="nav-icon"><i class="fas fa-history"></i></span> Sesiones
+      </button>
+      <button class="nav-item" data-view="reports">
+        <span class="nav-icon"><i class="fas fa-file-alt"></i></span> Reportes
+      </button>
+      <button class="nav-item" data-view="search">
+        <span class="nav-icon"><i class="fas fa-search"></i></span> Buscar
+      </button>
+      <button class="nav-item" data-view="data">
+        <span class="nav-icon"><i class="fas fa-database"></i></span> Mis Datos
+      </button>
+    </nav>
+
+    <div class="privacy-toggle">
+      <div class="privacy-header">
+        <span><i class="fas fa-shield-alt"></i> Modo Privacidad</span>
+        <label class="switch">
+          <input type="checkbox" id="privacySwitch">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="privacy-hint">Pausa el monitoreo durante momentos personales</p>
+    </div>
+
+    <!-- Sincronización en la nube -->
+    <div class="cloud-sync">
+      <div class="cloud-sync-header">
+        <span><i class="fas fa-cloud"></i> Sincronización en la nube</span>
+      </div>
+      <div id="syncStatus" class="sync-status">
+        <i class="fas fa-cloud-upload-alt"></i> Sin sincronizar
+      </div>
+
+      <!-- No autenticado -->
+      <div id="authSection">
+        <button class="btn btn-primary btn-block" onclick="openAuthModal()">
+          <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+        </button>
+        <p class="cloud-sync-hint">Crea una cuenta para sincronizar tus datos entre dispositivos</p>
+      </div>
+
+      <!-- Autenticado -->
+      <div id="userInfo" style="display:none">
+        <div class="user-info-card">
+          <div class="user-avatar"><i class="fas fa-user"></i></div>
+          <div class="user-details">
+            <div id="userName" class="user-name">Usuario</div>
+            <div id="userEmail" class="user-email"></div>
+          </div>
+        </div>
+        <div class="cloud-sync-actions">
+          <button class="btn btn-secondary btn-sm" onclick="manualSync()">
+            <i class="fas fa-sync"></i> Sincronizar ahora
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="signOut()">
+            <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indicador de almacenamiento -->
+    <div id="storageIndicator" class="storage-indicator-container"></div>
+
+    <div class="status-bar">
+      <div class="status-dot online"></div>
+      <span>Funcionando en tu navegador</span>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
