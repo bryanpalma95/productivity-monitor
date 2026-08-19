@@ -1,0 +1,27 @@
+<!-- Reports View -->
+<section class="view" id="view-reports">
+  <div class="view-header">
+    <h2>Reportes</h2>
+    <p>Reportes personales y gerenciales de tu jornada</p>
+  </div>
+
+  <div class="card">
+    <div class="reports-actions">
+      <button class="btn btn-primary" onclick="loadReports()">
+        <i class="fas fa-sync"></i> Actualizar
+      </button>
+      <button class="btn btn-secondary" onclick="generateFullReport()">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
+      </button>
+      <button class="btn btn-secondary" onclick="exportAllData()">
+        <i class="fas fa-file-excel"></i> Exportar Excel
+      </button>
+      <button class="btn btn-secondary" onclick="exportJSON()">
+        <i class="fas fa-file-code"></i> Exportar JSON
+      </button>
+    </div>
+    <div id="reports-content" class="reports-list">
+      <p class="empty-state">Cargando reportes...</p>
+    </div>
+  </div>
+</section>

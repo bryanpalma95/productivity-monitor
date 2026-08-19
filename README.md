@@ -60,27 +60,43 @@ Sistema de monitoreo de productividad y registro de actividades — **100% Web, 
 
 ```
 productivity-monitor/
-├── index.html              # Redirección a la app
-├── public/
-│   ├── standalone.html     # App principal (100% navegador)
-│   ├── css/
-│   │   └── styles.css      # Estilos
-│   └── js/
-│       └── standalone.js   # Lógica completa (localStorage)
-├── server.js               # Backend opcional (Express)
-└── package.json            # Dependencias (solo para modo servidor)
+├── index.html              # App principal (100% navegador)
+├── css/
+│   ├── styles.css          # Estilos base
+│   └── standalone.css      # Estilos específicos
+├── js/
+│   └── standalone.js       # Lógica completa (localStorage)
+└── partials/
+    ├── header.html         # Header, sidebar, mobile header
+    ├── dashboard.html      # Vista Dashboard
+    ├── monitor.html        # Vista Monitoreo
+    ├── sessions.html       # Vista Sesiones
+    ├── reports.html        # Vista Reportes
+    ├── search.html         # Vista Buscar
+    ├── data.html           # Vista Gestión de Datos
+    └── footer.html         # Footer, toast, modal, bottom nav
 ```
 
-## 🖥️ Modo Servidor (Opcional)
+## 🖥️ Uso Local
 
-Si prefieres usar el modo servidor con API REST:
+**Requiere un servidor HTTP local** — no funciona al abrir `index.html` directamente como archivo (`file://`) porque usa `fetch()` para cargar vistas modulares.
 
+### Opción 1 — VS Code Live Server (recomendado)
+Instala la extensión **Live Server**, haz clic derecho sobre `index.html` → **"Open with Live Server"**.
+
+### Opción 2 — Python (viene preinstalado en la mayoría de sistemas)
 ```bash
-npm install
-npm start
+cd productivity-monitor
+python -m http.server 8080
+# Abre: http://localhost:8080
 ```
 
-Abrir en el navegador: **http://localhost:3457**
+### Opción 3 — Node.js
+```bash
+npx serve productivity-monitor
+```
+
+> La página de GitHub Pages (`https://bryanpalma95.github.io/productivity-monitor/`) funciona directamente sin servidor.
 
 ## 🔒 Privacidad
 

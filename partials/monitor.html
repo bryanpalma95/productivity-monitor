@@ -1,0 +1,99 @@
+<!-- Monitor View -->
+<section class="view" id="view-monitor">
+  <div class="view-header">
+    <h2>Monitoreo en Vivo</h2>
+    <p>Captura de pantalla y audio para registrar tu actividad</p>
+  </div>
+
+  <div class="monitor-container">
+    <div class="card monitor-card">
+      <div class="monitor-header">
+        <h3><i class="fas fa-video"></i> Captura de Pantalla</h3>
+        <div class="monitor-status" id="screenStatus">
+          <span class="status-badge idle"><i class="fas fa-circle"></i> Inactivo</span>
+        </div>
+      </div>
+      <div class="screen-preview" id="screenPreview">
+        <div class="preview-placeholder">
+          <i class="fas fa-desktop"></i>
+          <p>La captura de pantalla aparecerá aquí</p>
+        </div>
+      </div>
+      <div class="monitor-controls">
+        <button class="btn btn-primary" id="btnStartScreen" onclick="startScreenCapture()">
+          <i class="fas fa-play"></i> Compartir Pantalla
+        </button>
+        <button class="btn btn-danger" id="btnStopScreen" onclick="stopScreenCapture()" style="display:none">
+          <i class="fas fa-stop"></i> Detener
+        </button>
+      </div>
+    </div>
+
+    <div class="card monitor-card">
+      <div class="monitor-header">
+        <h3><i class="fas fa-microphone"></i> Audio y Transcripción</h3>
+        <div class="monitor-status" id="audioStatus">
+          <span class="status-badge idle"><i class="fas fa-circle"></i> Inactivo</span>
+        </div>
+      </div>
+      <div class="audio-visualizer" id="audioVisualizer">
+        <div class="visualizer-bars" id="visualizerBars">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="monitor-controls">
+        <button class="btn btn-primary" id="btnStartAudio" onclick="startAudioCapture()">
+          <i class="fas fa-microphone"></i> Iniciar Audio
+        </button>
+        <button class="btn btn-danger" id="btnStopAudio" onclick="stopAudioCapture()" style="display:none">
+          <i class="fas fa-stop"></i> Detener
+        </button>
+      </div>
+    </div>
+
+    <div class="card monitor-card">
+      <div class="monitor-header">
+        <h3><i class="fas fa-comment-dots"></i> Transcripción en Vivo</h3>
+        <div class="monitor-status">
+          <span class="status-badge" id="transcriptStatus"><i class="fas fa-circle"></i> Esperando...</span>
+        </div>
+      </div>
+      <div id="liveTranscript" class="live-transcript">
+        <p class="empty-state">La transcripción en vivo aparecerá aquí</p>
+      </div>
+    </div>
+
+    <div class="card monitor-card">
+      <div class="monitor-header">
+        <h3><i class="fas fa-cog"></i> Configuración de Sesión</h3>
+      </div>
+      <div class="session-config">
+        <div class="form-group">
+          <label for="sessionTitle">Título de la Sesión</label>
+          <input type="text" id="sessionTitle" placeholder="Ej: Reunión con equipo de desarrollo">
+        </div>
+        <div class="form-group">
+          <label for="sessionType">Tipo de Sesión</label>
+          <select id="sessionType">
+            <option value="work">Trabajo</option>
+            <option value="meeting">Reunión</option>
+            <option value="individual">Trabajo Individual</option>
+            <option value="study">Estudio</option>
+          </select>
+        </div>
+        <div class="session-actions">
+          <button class="btn btn-success" id="btnStartSession" onclick="startSession()">
+            <i class="fas fa-play"></i> Iniciar Sesión
+          </button>
+          <button class="btn btn-danger" id="btnEndSession" onclick="endSession()" style="display:none">
+            <i class="fas fa-stop"></i> Terminar Sesión
+          </button>
+          <button class="btn btn-secondary" id="btnGenerateReport" onclick="generateReport()" style="display:none">
+            <i class="fas fa-file-alt"></i> Generar Reporte
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

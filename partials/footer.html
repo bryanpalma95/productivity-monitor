@@ -1,0 +1,40 @@
+  </main>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Modal para ver reporte -->
+<div class="modal" id="reportModal" style="display:none">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modalTitle">Reporte</h3>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Bottom Nav (mobile) -->
+<nav class="bottom-nav" id="bottomNav">
+  <button class="bn-item active" data-view="dashboard" onclick="switchView('dashboard')">
+    <i class="fas fa-home"></i>
+    <span>Inicio</span>
+  </button>
+  <button class="bn-item" data-view="monitor" onclick="switchView('monitor')">
+    <i class="fas fa-video"></i>
+    <span>Monitor</span>
+  </button>
+  <button class="bn-item" data-view="sessions" onclick="switchView('sessions')">
+    <i class="fas fa-history"></i>
+    <span>Sesiones</span>
+  </button>
+  <button class="bn-item" data-view="reports" onclick="switchView('reports')">
+    <i class="fas fa-file-alt"></i>
+    <span>Reportes</span>
+  </button>
+  <button class="bn-item" data-view="search" onclick="switchView('search')">
+    <i class="fas fa-search"></i>
+    <span>Buscar</span>
+  </button>
+</nav>

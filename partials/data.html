@@ -1,0 +1,40 @@
+<!-- Data View -->
+<section class="view" id="view-data">
+  <div class="view-header">
+    <h2>Mis Datos</h2>
+    <p>Gestiona tus datos almacenados en el navegador</p>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-database"></i> Almacenamiento Local</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Todos tus datos se guardan en el almacenamiento local de tu navegador. 
+      Puedes exportarlos como respaldo o eliminarlos cuando quieras.
+    </p>
+
+    <div id="storageIndicator" class="storage-indicator-container"></div>
+    
+    <div class="data-actions">
+      <button class="btn btn-primary" onclick="exportBackup()">
+        <i class="fas fa-download"></i> Exportar Backup
+      </button>
+      <button class="btn btn-secondary" onclick="importData()">
+        <i class="fas fa-upload"></i> Importar Datos
+      </button>
+      <button class="btn btn-secondary" onclick="exportJSON()">
+        <i class="fas fa-file-code"></i> Exportar JSON
+      </button>
+    </div>
+
+    
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    
+    <div class="danger-zone">
+      <h4><i class="fas fa-exclamation-triangle"></i> Zona de Peligro</h4>
+      <p>Esto eliminará permanentemente todos tus datos de sesiones, transcripciones y reportes.</p>
+      <button class="btn btn-danger" onclick="clearAllData()">
+        <i class="fas fa-trash"></i> Borrar Todos los Datos
+      </button>
+    </div>
+  </div>
+</section>
