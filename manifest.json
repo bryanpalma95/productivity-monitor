@@ -1,7 +1,8 @@
 {
   "name": "Productivity Monitor",
   "short_name": "ProdMonitor",
-  "description": "Monitorea tu productividad con captura de pantalla, transcripción de audio y reportes detallados.",
+  "description": "Monitorea tu productividad con captura de pantalla, transcripción de audio, reportes detallados y sincronización en la nube.",
+  "version": "2.1.0",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

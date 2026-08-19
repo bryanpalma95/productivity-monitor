@@ -1,9 +1,9 @@
 /* ============================================================
-   Productivity Monitor - Service Worker v2.0.0
+   Productivity Monitor - Service Worker v2.1.0
    Cache offline para PWA
    ============================================================ */
 
-const CACHE_NAME = 'productivity-monitor-v2.0.0';
+const CACHE_NAME = 'productivity-monitor-v2.1.0';
 const CORE_ASSETS = [
   './',
   './index.html',

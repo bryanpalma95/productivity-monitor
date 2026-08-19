@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Reports Module v2.0.0
+   Productivity Monitor - Reports Module v2.1.0
    Reportes, exportación y análisis con IA
    ============================================================ */
 
