@@ -219,6 +219,10 @@ function switchView(viewName) {
   if (viewName === 'dashboard') loadDashboard();
   if (viewName === 'sessions') loadSessions();
   if (viewName === 'reports') loadReports();
+  if (viewName === 'data') {
+    updateStorageIndicator();
+    if (typeof initGroqKeyUI === 'function') initGroqKeyUI();
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

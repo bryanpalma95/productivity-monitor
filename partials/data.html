@@ -5,6 +5,55 @@
     <p>Gestiona tus datos almacenados en el navegador</p>
   </div>
 
+  <!-- Configuración de Transcripción -->
+  <div class="card">
+    <h3><i class="fas fa-microphone-alt"></i> Transcripción de Audio</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Configura tu API key de <strong>Groq</strong> para habilitar transcripción precisa con Whisper. 
+      Groq es <strong>gratuito</strong> — solo crea una cuenta en 
+      <a href="https://console.groq.com" target="_blank" style="color:var(--primary)">console.groq.com</a> 
+      y genera una API key.
+    </p>
+
+    <div class="form-group">
+      <label for="groqApiKeyInput"><i class="fas fa-key"></i> Groq API Key</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="password" id="groqApiKeyInput" placeholder="gsk_..." 
+               style="flex:1;font-family:monospace;font-size:0.85rem"
+               oninput="onGroqKeyInput()">
+        <button class="btn btn-secondary btn-sm" onclick="toggleGroqKeyVisibility()" id="btnToggleGroqKey">
+          <i class="fas fa-eye" id="groqKeyEyeIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveGroqApiKey()">
+        <i class="fas fa-save"></i> Guardar API Key
+      </button>
+      <button class="btn btn-secondary" onclick="clearGroqApiKey()">
+        <i class="fas fa-trash"></i> Eliminar
+      </button>
+    </div>
+
+    <div id="groqKeyStatus" style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary)">
+      <i class="fas fa-info-circle"></i> Sin API key — usando reconocimiento de voz del navegador como fallback.
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">
+        <i class="fas fa-question-circle"></i> ¿Cómo obtener una API key gratis?
+      </summary>
+      <ol style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary);padding-left:20px;line-height:1.8">
+        <li>Ve a <a href="https://console.groq.com" target="_blank" style="color:var(--primary)">console.groq.com</a></li>
+        <li>Crea una cuenta gratuita (puedes usar Google)</li>
+        <li>En el menú lateral, haz clic en <strong>API Keys</strong></li>
+        <li>Clic en <strong>Create API Key</strong></li>
+        <li>Copia la key (empieza con <code>gsk_</code>) y pégala aquí</li>
+      </ol>
+    </details>
+  </div>
+
   <div class="card">
     <h3><i class="fas fa-cloud"></i> Sincronización en la Nube</h3>
     <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">

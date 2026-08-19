@@ -1,11 +1,69 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v2.4.0
-   Captura de pantalla, audio y transcripción en vivo
-   Micrófono: Web Speech API con reintentos robustos
-   Audio sistema: MediaRecorder (sin API externa)
+   Productivity Monitor - Monitor Module v2.5.0
+   Transcripción: Groq Whisper (si hay API key) → Web Speech API (fallback)
    ============================================================ */
 
-// Referencia al MediaRecorder activo (sistema) — evita instancias zombie
+// ===== Groq API Key helpers =====
+function getGroqApiKey() {
+  return localStorage.getItem('groq_api_key') || '';
+}
+
+function saveGroqApiKey() {
+  const key = document.getElementById('groqApiKeyInput').value.trim();
+  if (!key) { showToast('⚠️ Ingresa una API key primero', 'error'); return; }
+  if (!key.startsWith('gsk_')) { showToast('⚠️ La key de Groq debe comenzar con gsk_', 'error'); return; }
+  localStorage.setItem('groq_api_key', key);
+  updateGroqKeyStatus();
+  showToast('✅ API key de Groq guardada');
+}
+
+function clearGroqApiKey() {
+  localStorage.removeItem('groq_api_key');
+  const input = document.getElementById('groqApiKeyInput');
+  if (input) input.value = '';
+  updateGroqKeyStatus();
+  showToast('🗑️ API key eliminada');
+}
+
+function onGroqKeyInput() {
+  // no-op — solo para forzar reactividad si se necesita
+}
+
+function toggleGroqKeyVisibility() {
+  const input = document.getElementById('groqApiKeyInput');
+  const icon = document.getElementById('groqKeyEyeIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+
+function updateGroqKeyStatus() {
+  const key = getGroqApiKey();
+  const statusEl = document.getElementById('groqKeyStatus');
+  const input = document.getElementById('groqApiKeyInput');
+  if (!statusEl) return;
+  if (key) {
+    if (input && !input.value) input.value = key; // rellenar si está vacío
+    statusEl.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> API key configurada — la transcripción usará <strong>Groq Whisper</strong>.';
+  } else {
+    statusEl.innerHTML = '<i class="fas fa-info-circle"></i> Sin API key — usando reconocimiento de voz del navegador como fallback.';
+  }
+}
+
+// Llamar al cargar la vista de datos
+function initGroqKeyUI() {
+  const key = getGroqApiKey();
+  const input = document.getElementById('groqApiKeyInput');
+  if (input && key) input.value = key;
+  updateGroqKeyStatus();
+}
+
+// ===== Variables de módulo =====
 let _systemMediaRecorder = null;
 let _micMediaRecorder = null;
 let _speechRetryCount = 0;
@@ -151,7 +209,10 @@ function handleAudioSourceChange() {
     hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema captura el sonido pero no lo transcribe automáticamente. Usa el micrófono para transcripción en vivo.</span>';
     btnStart.innerHTML = '<i class="fas fa-volume-up"></i> Iniciar Audio del Sistema';
   } else {
-    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El micrófono transcribe en tiempo real usando el reconocimiento de voz del navegador (Chrome/Edge recomendado).</span>';
+    const hasGroq = !!getGroqApiKey();
+    hint.innerHTML = hasGroq
+      ? '<i class="fas fa-check-circle" style="color:var(--success)"></i> <span>Groq Whisper configurado — transcripción precisa activa.</span>'
+      : '<i class="fas fa-info-circle"></i> <span>Sin API key de Groq — usando reconocimiento de voz del navegador. Configura Groq en <strong>Mis Datos</strong> para mejor precisión.</span>';
     btnStart.innerHTML = '<i class="fas fa-microphone"></i> Iniciar Micrófono';
   }
 }
@@ -307,12 +368,108 @@ async function transcribeSystemAudioChunk() {
   }
 }
 
-// ===== Transcripción del Micrófono (Web Speech API con reintentos) =====
+// ===== Transcripción del Micrófono (Groq Whisper → fallback Web Speech API) =====
 function startMicTranscription() {
   _speechRetryCount = 0;
   clearTimeout(_speechRetryTimer);
-  _initSpeechRecognition();
+  _speechRetryTimer = null;
+
+  if (getGroqApiKey()) {
+    _startGroqMicTranscription();
+  } else {
+    _initSpeechRecognition();
+  }
 }
+
+// ----- Groq Whisper -----
+function _startGroqMicTranscription() {
+  const transcriptStatus = document.getElementById('transcriptStatus');
+  if (transcriptStatus) {
+    transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando (Groq Whisper)...</span>';
+  }
+
+  clearInterval(App.micTranscriptionInterval);
+  App.micTranscriptionInterval = setInterval(() => {
+    if (!App.audioStream || !App.currentSession) return;
+    _transcribeWithGroq();
+  }, 15000);
+}
+
+async function _transcribeWithGroq() {
+  if (!App.audioStream || !App.currentSession) return;
+  if (_micMediaRecorder && _micMediaRecorder.state === 'recording') return;
+
+  const apiKey = getGroqApiKey();
+  if (!apiKey) return;
+
+  try {
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+      .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+    _micMediaRecorder = new MediaRecorder(App.audioStream, mimeType ? { mimeType } : {});
+    const chunks = [];
+
+    _micMediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    _micMediaRecorder.onstop = async () => {
+      _micMediaRecorder = null;
+      if (!chunks.length) return;
+
+      const blobType = mimeType || 'audio/webm';
+      const blob = new Blob(chunks, { type: blobType });
+      if (blob.size < 1024) return; // silencio
+
+      const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
+      const formData = new FormData();
+      formData.append('file', blob, `mic.${ext}`);
+      formData.append('model', 'whisper-large-v3-turbo');
+      formData.append('language', 'es');
+      formData.append('response_format', 'json');
+
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+          body: formData
+        });
+
+        if (res.status === 401) {
+          showToast('❌ API key de Groq inválida. Verifica en Mis Datos.', 'error');
+          stopMicTranscription();
+          return;
+        }
+        if (!res.ok) {
+          console.warn('Groq transcripción falló:', res.status);
+          return;
+        }
+
+        const data = await res.json();
+        const text = data.text || '';
+        if (text.trim()) addTranscriptEntry(text.trim());
+
+      } catch (err) {
+        console.error('Error Groq transcripción:', err);
+      }
+    };
+
+    _micMediaRecorder.onerror = () => { _micMediaRecorder = null; };
+    _micMediaRecorder.start();
+
+    setTimeout(() => {
+      if (_micMediaRecorder && _micMediaRecorder.state === 'recording') {
+        _micMediaRecorder.stop();
+      }
+    }, 10000);
+
+  } catch (err) {
+    console.error('Error iniciando grabación Groq:', err);
+    _micMediaRecorder = null;
+  }
+}
+
+// ----- Web Speech API (fallback) -----
 
 function _initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -433,6 +590,17 @@ function stopMicTranscription() {
   _speechRetryTimer = null;
   _speechRetryCount = 0;
 
+  // Detener intervalo de Groq
+  clearInterval(App.micTranscriptionInterval);
+  App.micTranscriptionInterval = null;
+
+  // Detener MediaRecorder del mic si está activo
+  if (_micMediaRecorder && _micMediaRecorder.state !== 'inactive') {
+    try { _micMediaRecorder.stop(); } catch (e) {}
+  }
+  _micMediaRecorder = null;
+
+  // Detener SpeechRecognition si estaba activo
   if (App.recognition) {
     const rec = App.recognition;
     App.recognition = null;
