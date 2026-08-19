@@ -1,0 +1,19 @@
+<!-- Search View -->
+<section class="view" id="view-search">
+  <div class="view-header">
+    <h2>Buscador Semántico</h2>
+    <p>Busca en tu historial de transcripciones</p>
+  </div>
+
+  <div class="card">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Ej: ¿Qué me pidió Carlos en la reunión sobre el proyecto X?" onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="btn btn-primary" onclick="doSearch()">
+        <i class="fas fa-search"></i> Buscar
+      </button>
+    </div>
+    <div id="search-results" class="search-results">
+      <p class="empty-state">Realiza una búsqueda para ver resultados</p>
+    </div>
+  </div>
+</section>

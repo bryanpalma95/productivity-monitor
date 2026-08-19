@@ -1,0 +1,21 @@
+<!-- Sessions View -->
+<section class="view" id="view-sessions">
+  <div class="view-header">
+    <h2>Sesiones</h2>
+    <p>Historial de todas tus sesiones de trabajo</p>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <input type="text" id="sessionSearch" placeholder="🔍 Buscar sesiones..." oninput="debouncedFilterSessions()">
+      <select id="sessionFilter" onchange="filterSessions()">
+        <option value="all">Todas</option>
+        <option value="active">Activas</option>
+        <option value="ended">Terminadas</option>
+      </select>
+    </div>
+    <div id="sessions-list" class="session-list">
+      <p class="empty-state">Cargando sesiones...</p>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,169 @@
+<!-- Data View -->
+<section class="view" id="view-data">
+  <div class="view-header">
+    <h2>Mis Datos</h2>
+    <p>Gestiona tus datos almacenados en el navegador</p>
+  </div>
+
+  <!-- Configuración de Transcripción -->
+  <div class="card">
+    <h3><i class="fas fa-microphone-alt"></i> Transcripción de Audio</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Configura tu API key de <strong>Groq</strong> para habilitar transcripción precisa con Whisper. 
+      Groq es <strong>gratuito</strong> — solo crea una cuenta en 
+      <a href="https://console.groq.com" target="_blank" style="color:var(--primary)">console.groq.com</a> 
+      y genera una API key.
+    </p>
+
+    <div class="form-group">
+      <label for="groqApiKeyInput"><i class="fas fa-key"></i> Groq API Key</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="password" id="groqApiKeyInput" placeholder="gsk_..." 
+               style="flex:1;font-family:monospace;font-size:0.85rem"
+               oninput="onGroqKeyInput()">
+        <button class="btn btn-secondary btn-sm" onclick="toggleGroqKeyVisibility()" id="btnToggleGroqKey">
+          <i class="fas fa-eye" id="groqKeyEyeIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveGroqApiKey()">
+        <i class="fas fa-save"></i> Guardar API Key
+      </button>
+      <button class="btn btn-secondary" onclick="clearGroqApiKey()">
+        <i class="fas fa-trash"></i> Eliminar
+      </button>
+    </div>
+
+    <div id="groqKeyStatus" style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary)">
+      <i class="fas fa-info-circle"></i> Sin API key — usando reconocimiento de voz del navegador como fallback.
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">
+        <i class="fas fa-question-circle"></i> ¿Cómo obtener una API key de Groq gratis?
+      </summary>
+      <ol style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary);padding-left:20px;line-height:1.8">
+        <li>Ve a <a href="https://console.groq.com" target="_blank" style="color:var(--primary)">console.groq.com</a></li>
+        <li>Crea una cuenta gratuita (puedes usar Google)</li>
+        <li>En el menú lateral, haz clic en <strong>API Keys</strong></li>
+        <li>Clic en <strong>Create API Key</strong></li>
+        <li>Copia la key (empieza con <code>gsk_</code>) y pégala aquí</li>
+      </ol>
+    </details>
+  </div>
+
+  <!-- Configuración de Resumen IA (OpenRouter) -->
+  <div class="card">
+    <h3><i class="fas fa-robot"></i> Resumen IA</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Configura tu API key de <strong>OpenRouter</strong> para habilitar el resumen automático de sesiones con IA.
+      OpenRouter es <strong>gratuito</strong> — sin tarjeta de crédito, y siempre usa el mejor modelo disponible.
+    </p>
+
+    <div class="form-group">
+      <label for="openrouterApiKeyInput"><i class="fas fa-key"></i> OpenRouter API Key</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="password" id="openrouterApiKeyInput" placeholder="sk-or-..." 
+               style="flex:1;font-family:monospace;font-size:0.85rem">
+        <button class="btn btn-secondary btn-sm" onclick="toggleOpenRouterKeyVisibility()" id="btnToggleOpenRouterKey">
+          <i class="fas fa-eye" id="openrouterKeyEyeIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveOpenRouterApiKey()">
+        <i class="fas fa-save"></i> Guardar API Key
+      </button>
+      <button class="btn btn-secondary" onclick="clearOpenRouterApiKey()">
+        <i class="fas fa-trash"></i> Eliminar
+      </button>
+    </div>
+
+    <div id="openrouterKeyStatus" style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary)">
+      <i class="fas fa-info-circle"></i> Sin API key — el Resumen IA no estará disponible.
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">
+        <i class="fas fa-question-circle"></i> ¿Cómo obtener una API key de OpenRouter gratis?
+      </summary>
+      <ol style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary);padding-left:20px;line-height:1.8">
+        <li>Ve a <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary)">openrouter.ai/keys</a></li>
+        <li>Crea una cuenta gratuita (puedes usar Google)</li>
+        <li>Clic en <strong>Create Key</strong></li>
+        <li>Copia la key (empieza con <code>sk-or-</code>) y pégala aquí</li>
+      </ol>
+    </details>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-cloud"></i> Sincronización en la Nube</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Inicia sesión para sincronizar tus datos entre dispositivos. Tus sesiones, transcripciones y reportes se guardarán en la nube de forma segura.
+    </p>
+
+    <div id="dataSyncStatus" class="sync-status">
+      <i class="fas fa-cloud-upload-alt"></i> Sin sincronizar
+    </div>
+
+    <div id="dataAuthSection">
+      <button class="btn btn-primary" onclick="openAuthModal()">
+        <i class="fas fa-sign-in-alt"></i> Iniciar sesión / Crear cuenta
+      </button>
+    </div>
+
+    <div id="dataUserInfo" style="display:none">
+      <div class="user-info-card">
+        <div class="user-avatar"><i class="fas fa-user"></i></div>
+        <div class="user-details">
+          <div id="dataUserName" class="user-name">Usuario</div>
+          <div id="dataUserEmail" class="user-email"></div>
+        </div>
+      </div>
+      <div class="cloud-sync-actions">
+        <button class="btn btn-primary" onclick="manualSync()">
+          <i class="fas fa-sync"></i> Sincronizar ahora
+        </button>
+        <button class="btn btn-secondary" onclick="signOut()">
+          <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-database"></i> Almacenamiento Local</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Todos tus datos se guardan en el almacenamiento local de tu navegador. 
+      Puedes exportarlos como respaldo o eliminarlos cuando quieras.
+    </p>
+
+    <div id="storageIndicator" class="storage-indicator-container"></div>
+    
+    <div class="data-actions">
+      <button class="btn btn-primary" onclick="exportBackup()">
+        <i class="fas fa-download"></i> Exportar Backup
+      </button>
+      <button class="btn btn-secondary" onclick="importData()">
+        <i class="fas fa-upload"></i> Importar Datos
+      </button>
+      <button class="btn btn-secondary" onclick="exportJSON()">
+        <i class="fas fa-file-code"></i> Exportar JSON
+      </button>
+    </div>
+
+    
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+    
+    <div class="danger-zone">
+      <h4><i class="fas fa-exclamation-triangle"></i> Zona de Peligro</h4>
+      <p>Esto eliminará permanentemente todos tus datos de sesiones, transcripciones y reportes.</p>
+      <button class="btn btn-danger" onclick="clearAllData()">
+        <i class="fas fa-trash"></i> Borrar Todos los Datos
+      </button>
+    </div>
+  </div>
+</section>
