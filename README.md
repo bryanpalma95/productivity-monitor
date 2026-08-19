@@ -113,6 +113,30 @@ npx serve productivity-monitor
 - Sin envío de datos a terceros
 - Exporta tus datos cuando quieras
 
+## 🔐 Seguridad de Firebase
+
+> **IMPORTANTE:** La `apiKey` de Firebase en `js/firebase-config.js` **NO es un secreto**. Está diseñada para ser pública en aplicaciones web (es visible en el navegador de cualquier usuario). La seguridad real de tus datos depende de las **Firestore Security Rules**.
+
+### Configurar las reglas de seguridad (OBLIGATORIO)
+
+Para proteger los datos de los usuarios, debes configurar las reglas de Firestore:
+
+1. Ve a [Firebase Console](https://console.firebase.google.com/) → tu proyecto
+2. Menú lateral → **Firestore Database**
+3. Pestaña **Reglas**
+4. Reemplaza las reglas actuales con el contenido de [`firestore.rules`](firestore.rules)
+5. Haz clic en **Publicar**
+
+Estas reglas garantizan que:
+- ✅ Solo usuarios autenticados pueden acceder a los datos
+- ✅ Cada usuario solo puede leer/escribir **sus propios datos**
+- ✅ Nadie puede acceder a datos de otros usuarios
+- ❌ Si dejas las reglas en "modo prueba" (allow all), **cualquiera** podría leer/escribir datos
+
+### ¿Qué pasa si alguien ve mi apiKey?
+
+Nada grave. La `apiKey` solo identifica tu proyecto Firebase. Sin las reglas de seguridad correctas, no permite acceder a datos. La protección real está en las reglas de Firestore.
+
 ## ⚠️ Requisitos del Navegador
 
 - **Chrome** o **Edge** (recomendado)
