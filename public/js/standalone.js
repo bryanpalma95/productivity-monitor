@@ -162,7 +162,12 @@ function loadDashboard() {
   document.getElementById('stat-transcripts').textContent = totalTranscripts;
   document.getElementById('stat-screenshots').textContent = totalScreenshots;
   
+  // Renderizar gráficos
+  renderActivityChart();
+  renderTypeChart();
+  
   // Sesiones recientes
+
   const recentContainer = document.getElementById('recent-sessions');
   const recent = sessions.slice(0, 5);
   
@@ -723,7 +728,20 @@ function viewSessionDetails(sessionId) {
         <p><i class="fas fa-clock"></i> Duración: ${formatDuration(session.duration || 0)}</p>
       </div>
       
+      <div class="export-actions">
+        <button class="btn btn-primary" onclick="generateAISummary('${session.id}')">
+          <i class="fas fa-robot"></i> Resumen IA
+        </button>
+        <button class="btn btn-secondary" onclick="exportReportPDF('${session.id}')">
+          <i class="fas fa-file-pdf"></i> PDF
+        </button>
+        <button class="btn btn-secondary" onclick="exportReportExcel('${session.id}')">
+          <i class="fas fa-file-excel"></i> Excel
+        </button>
+      </div>
+      
       <h4><i class="fas fa-comment-dots"></i> Transcripciones (${transcripts.length})</h4>
+
       ${transcripts.length === 0 ? '<p class="empty-state">Sin transcripciones</p>' : `
         <div class="transcript-list">
           ${transcripts.map(t => `
@@ -1215,6 +1233,422 @@ function disablePrivacyMode() {
   privacySwitch.dispatchEvent(new Event('change'));
 }
 
+// ===== Gráficos =====
+function renderActivityChart() {
+  const container = document.getElementById('activity-chart');
+  const sessions = Storage.getSessions();
+  
+  if (sessions.length === 0) {
+    container.innerHTML = '<p class="empty-state">Inicia sesiones para ver tu actividad</p>';
+    return;
+  }
+  
+  // Agrupar por día (últimos 7 días)
+  const days = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push({
+      date: d,
+      label: d.toLocaleDateString('es-ES', { weekday: 'short' }),
+      total: 0
+    });
+  }
+  
+  sessions.forEach(s => {
+    const sDate = new Date(s.startedAt);
+    sDate.setHours(0, 0, 0, 0);
+    
+    const day = days.find(d => d.date.getTime() === sDate.getTime());
+    if (day) {
+      day.total += s.duration || 0;
+    }
+  });
+  
+  const maxTotal = Math.max(...days.map(d => d.total), 1);
+  
+  container.innerHTML = `
+    <div class="bar-chart">
+      ${days.map(d => {
+        const height = Math.max(4, (d.total / maxTotal) * 140);
+        const hours = (d.total / 3600000).toFixed(1);
+        return `
+          <div class="bar-col">
+            <span class="bar-value">${d.total > 0 ? hours + 'h' : ''}</span>
+            <div class="bar" style="height:${height}px" title="${hours}h"></div>
+            <span class="bar-label">${d.label}</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTypeChart() {
+  const container = document.getElementById('type-chart');
+  const sessions = Storage.getSessions();
+  
+  if (sessions.length === 0) {
+    container.innerHTML = '<p class="empty-state">Inicia sesiones para ver la distribución</p>';
+    return;
+  }
+  
+  // Contar por tipo
+  const typeCounts = {};
+  sessions.forEach(s => {
+    const type = s.type || 'work';
+    typeCounts[type] = (typeCounts[type] || 0) + (s.duration || 0);
+  });
+  
+  const typeLabels = {
+    work: 'Trabajo',
+    meeting: 'Reunión',
+    individual: 'Individual',
+    study: 'Estudio'
+  };
+  
+  const typeColors = {
+    work: '#40c4ff',
+    meeting: '#b388ff',
+    individual: '#69f0ae',
+    study: '#ffb74d'
+  };
+  
+  const total = Object.values(typeCounts).reduce((a, b) => a + b, 0);
+  if (total === 0) {
+    container.innerHTML = '<p class="empty-state">Inicia sesiones para ver la distribución</p>';
+    return;
+  }
+  
+  // Construir pie chart con conic-gradient
+  let gradient = '';
+  let cumulative = 0;
+  const entries = Object.entries(typeCounts);
+  
+  entries.forEach(([type, ms], i) => {
+    const pct = (ms / total) * 100;
+    const start = cumulative;
+    cumulative += pct;
+    const color = typeColors[type] || '#888';
+    gradient += `${color} ${start}% ${cumulative}%${i < entries.length - 1 ? ',' : ''}`;
+  });
+  
+  container.innerHTML = `
+    <div class="pie-chart">
+      <div class="pie" style="background: conic-gradient(${gradient})">
+        <div class="pie-center">${Math.round(total / 3600000)}h</div>
+      </div>
+      <div class="pie-legend">
+        ${entries.map(([type, ms]) => `
+          <div class="pie-legend-item">
+            <span class="color-dot" style="background:${typeColors[type] || '#888'}"></span>
+            <span class="legend-label">${typeLabels[type] || type}</span>
+            <span class="legend-value">${(ms / 3600000).toFixed(1)}h (${Math.round((ms / total) * 100)}%)</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ===== Resumen con IA (OmniRoute) =====
+async function generateAISummary(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+  
+  const transcripts = session.transcripts || [];
+  if (transcripts.length === 0) {
+    showToast('⚠️ No hay transcripciones para resumir', 'error');
+    return;
+  }
+  
+  // Mostrar modal con loading
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+  
+  title.textContent = `Resumen IA: ${session.title}`;
+  body.innerHTML = `
+    <div class="ai-summary">
+      <div class="ai-summary-header">
+        <i class="fas fa-robot"></i>
+        <h4>Generando resumen inteligente...</h4>
+      </div>
+      <div class="ai-summary-loading">
+        <div class="spinner"></div>
+        <span>Analizando ${transcripts.length} transcripciones...</span>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+  
+  // Construir texto de transcripciones
+  const transcriptText = transcripts.map(t => `[${formatTime(t.timestamp)}] ${t.text}`).join('\n');
+  
+  try {
+    // Intentar usar OmniRoute MCP para el resumen
+    const response = await fetch('http://localhost:3457/api/ai/summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionTitle: session.title,
+        transcripts: transcriptText
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      body.innerHTML = `
+        <div class="ai-summary">
+          <div class="ai-summary-header">
+            <i class="fas fa-robot"></i>
+            <h4>Resumen Inteligente</h4>
+          </div>
+          <div class="ai-summary-content">${escapeHtml(data.summary)}</div>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-primary" onclick="exportReportPDF('${session.id}')">
+            <i class="fas fa-file-pdf"></i> Exportar PDF
+          </button>
+          <button class="btn btn-secondary" onclick="exportReportExcel('${session.id}')">
+            <i class="fas fa-file-excel"></i> Exportar Excel
+          </button>
+        </div>
+      `;
+    } else {
+      // Fallback: usar análisis local
+      const analysis = analyzeTranscripts(transcripts);
+      const summary = generateLocalSummary(session, analysis);
+      body.innerHTML = `
+        <div class="ai-summary">
+          <div class="ai-summary-header">
+            <i class="fas fa-robot"></i>
+            <h4>Resumen de Sesión</h4>
+          </div>
+          <div class="ai-summary-content">${escapeHtml(summary)}</div>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-primary" onclick="exportReportPDF('${session.id}')">
+            <i class="fas fa-file-pdf"></i> Exportar PDF
+          </button>
+          <button class="btn btn-secondary" onclick="exportReportExcel('${session.id}')">
+            <i class="fas fa-file-excel"></i> Exportar Excel
+          </button>
+        </div>
+      `;
+    }
+  } catch (err) {
+    // Fallback local si no hay servidor
+    const analysis = analyzeTranscripts(transcripts);
+    const summary = generateLocalSummary(session, analysis);
+    body.innerHTML = `
+      <div class="ai-summary">
+        <div class="ai-summary-header">
+          <i class="fas fa-robot"></i>
+          <h4>Resumen de Sesión</h4>
+        </div>
+        <div class="ai-summary-content">${escapeHtml(summary)}</div>
+      </div>
+      <div class="export-actions">
+        <button class="btn btn-primary" onclick="exportReportPDF('${session.id}')">
+          <i class="fas fa-file-pdf"></i> Exportar PDF
+        </button>
+        <button class="btn btn-secondary" onclick="exportReportExcel('${session.id}')">
+          <i class="fas fa-file-excel"></i> Exportar Excel
+        </button>
+      </div>
+    `;
+  }
+}
+
+function generateLocalSummary(session, analysis) {
+  const lines = [];
+  lines.push(`📋 RESUMEN DE SESIÓN`);
+  lines.push(`📌 ${session.title}`);
+  lines.push(`📅 ${formatDateTime(session.startedAt)}`);
+  lines.push(`⏱️ Duración: ${formatDuration(session.duration || 0)}`);
+  lines.push('');
+  
+  if (analysis.pendientes.length > 0) {
+    lines.push('✅ PENDIENTES:');
+    analysis.pendientes.forEach(p => lines.push(`  • ${p}`));
+    lines.push('');
+  }
+  
+  if (analysis.ideas.length > 0) {
+    lines.push('💡 IDEAS CLAVE:');
+    analysis.ideas.forEach(i => lines.push(`  • ${i}`));
+    lines.push('');
+  }
+  
+  if (analysis.bloqueos.length > 0) {
+    lines.push('⚠️ BLOQUEOS:');
+    analysis.bloqueos.forEach(b => lines.push(`  • ${b}`));
+    lines.push('');
+  }
+  
+  if (analysis.proyectos.length > 0) {
+    lines.push('📁 PROYECTOS:');
+    analysis.proyectos.forEach(p => lines.push(`  • ${p}`));
+    lines.push('');
+  }
+  
+  if (analysis.personas.length > 0) {
+    lines.push('👥 PERSONAS:');
+    analysis.personas.forEach(p => lines.push(`  • ${p}`));
+    lines.push('');
+  }
+  
+  if (analysis.hitos.length > 0) {
+    lines.push('🎯 HITOS:');
+    analysis.hitos.forEach(h => lines.push(`  • ${h}`));
+    lines.push('');
+  }
+  
+  return lines.join('\n');
+}
+
+// ===== Exportar Reportes =====
+function exportReportPDF(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+  
+  const transcripts = session.transcripts || [];
+  const analysis = analyzeTranscripts(transcripts);
+  const summary = generateLocalSummary(session, analysis);
+  
+  // Crear HTML para PDF
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Reporte - ${session.title}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+        h1 { color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; }
+        h2 { color: #1a73e8; margin-top: 30px; }
+        .meta { color: #666; margin-bottom: 20px; }
+        .meta p { margin: 4px 0; }
+        ul { padding-left: 20px; }
+        li { margin: 4px 0; }
+        .transcript { background: #f5f5f5; padding: 10px; border-radius: 5px; margin: 8px 0; }
+        .transcript .time { color: #999; font-size: 12px; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #999; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <h1>Reporte de Productividad</h1>
+      <div class="meta">
+        <p><strong>Sesión:</strong> ${session.title}</p>
+        <p><strong>Tipo:</strong> ${getTypeLabel(session.type)}</p>
+        <p><strong>Fecha:</strong> ${formatDateTime(session.startedAt)}</p>
+        <p><strong>Duración:</strong> ${formatDuration(session.duration || 0)}</p>
+      </div>
+      
+      <h2>Resumen</h2>
+      <pre style="white-space:pre-wrap;font-family:Arial,sans-serif;font-size:14px;line-height:1.6">${summary}</pre>
+      
+      <h2>Transcripciones (${transcripts.length})</h2>
+      ${transcripts.map(t => `
+        <div class="transcript">
+          <span class="time">${formatTime(t.timestamp)}</span>
+          <p>${t.text}</p>
+        </div>
+      `).join('')}
+      
+      <div class="footer">
+        Generado por Productivity Monitor el ${formatDateTime(Date.now())}
+      </div>
+    </body>
+    </html>
+  `;
+  
+  // Abrir en nueva ventana para imprimir/guardar como PDF
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function exportReportExcel(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+  
+  const transcripts = session.transcripts || [];
+  const analysis = analyzeTranscripts(transcripts);
+  
+  // Crear CSV
+  const rows = [];
+  rows.push(['Productivity Monitor - Reporte de Sesión']);
+  rows.push(['Sesión', session.title]);
+  rows.push(['Tipo', getTypeLabel(session.type)]);
+  rows.push(['Fecha', formatDateTime(session.startedAt)]);
+  rows.push(['Duración', formatDuration(session.duration || 0)]);
+  rows.push([]);
+  rows.push(['TRANSCRIPCIONES']);
+  rows.push(['Hora', 'Texto']);
+  transcripts.forEach(t => rows.push([formatTime(t.timestamp), t.text]));
+  rows.push([]);
+  rows.push(['ANÁLISIS']);
+  rows.push(['Pendientes', analysis.pendientes.join('; ')]);
+  rows.push(['Ideas', analysis.ideas.join('; ')]);
+  rows.push(['Bloqueos', analysis.bloqueos.join('; ')]);
+  rows.push(['Proyectos', analysis.proyectos.join('; ')]);
+  rows.push(['Personas', analysis.personas.join('; ')]);
+  rows.push(['Hitos', analysis.hitos.join('; ')]);
+  
+  const csv = rows.map(row => 
+    row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `reporte-${session.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📊 Reporte Excel exportado');
+}
+
+// ===== Recordatorios =====
+function setupReminders() {
+  // Recordatorio de descanso cada 50 minutos
+  setInterval(() => {
+    if (App.isRecording) {
+      const session = App.currentSession;
+      if (session) {
+        const elapsed = Date.now() - session.startedAt;
+        const minutes = Math.floor(elapsed / 60000);
+        
+        if (minutes > 0 && minutes % 50 === 0) {
+          showToast('☕ ¡Tiempo de descanso! Llevas ' + minutes + ' minutos trabajando.', 'reminder');
+        }
+      }
+    }
+  }, 60000); // Verificar cada minuto
+  
+  // Recordatorio de sesión larga (2 horas)
+  setInterval(() => {
+    if (App.isRecording) {
+      const session = App.currentSession;
+      if (session) {
+        const elapsed = Date.now() - session.startedAt;
+        const hours = Math.floor(elapsed / 3600000);
+        
+        if (hours >= 2 && hours % 2 === 0) {
+          showToast('⏰ Sesión de ' + hours + ' horas. Considera tomar un descanso más largo.', 'reminder');
+        }
+      }
+    }
+  }, 3600000); // Verificar cada hora
+}
+
 // ===== Inicialización =====
 function init() {
   // Configurar navegación
@@ -1225,8 +1659,12 @@ function init() {
   // Configurar modo privacidad
   setupPrivacyMode();
   
+  // Configurar recordatorios
+  setupReminders();
+  
   // Cargar dashboard
   loadDashboard();
+
   
   // Cerrar modal al hacer clic fuera
   document.getElementById('reportModal').addEventListener('click', (e) => {
