@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Dashboard Module v2.0.0
+   Productivity Monitor - Dashboard Module v2.1.0
    Dashboard, gráficos, puntaje de productividad y tendencias
    ============================================================ */
 

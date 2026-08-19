@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v2.0.0
+   Productivity Monitor - Monitor Module v2.1.0
    Captura de pantalla, audio y transcripción en vivo
    ============================================================ */
 

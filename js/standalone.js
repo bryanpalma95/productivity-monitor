@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Standalone Version v2.0.0
+   Productivity Monitor - Standalone Version v2.1.0
    Funciona 100% en el navegador usando localStorage
    No requiere servidor, instalación ni configuración
    ============================================================ */
