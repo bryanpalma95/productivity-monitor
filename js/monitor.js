@@ -332,114 +332,146 @@ async function startAudioCapture() {
   }
 }
 
-// ===== Transcripción del Audio del Sistema (via OmniRoute) =====
 // ===== Transcripción del Audio del Sistema (via Groq Whisper) =====
 function startSystemAudioTranscription() {
+  clearInterval(App.systemTranscriptionInterval);
+  App.systemTranscriptionInterval = null;
+
   const transcriptStatus = document.getElementById('transcriptStatus');
 
+  // Si no hay sesión, esperar a que haya una
   if (!App.currentSession) {
     if (transcriptStatus) transcriptStatus.innerHTML =
-      '<span class="status-badge idle"><i class="fas fa-circle"></i> Esperando sesión...</span>';
-  } else {
-    if (transcriptStatus) transcriptStatus.innerHTML =
-      '<span class="status-badge active"><i class="fas fa-circle"></i> Transcribiendo sistema...</span>';
+      '<span class="status-badge idle"><i class="fas fa-circle"></i> Inicia sesión para transcribir...</span>';
+    App.systemTranscriptionInterval = setInterval(() => {
+      if (App.currentSession && App.systemAudioStream) {
+        clearInterval(App.systemTranscriptionInterval);
+        App.systemTranscriptionInterval = null;
+        startSystemAudioTranscription();
+      }
+    }, 2000);
+    return;
   }
 
-  clearInterval(App.systemTranscriptionInterval);
-  App.systemTranscriptionInterval = setInterval(() => {
-    if (!App.systemAudioStream) return;
-    if (!App.currentSession) return;
+  // Verificar pistas activas
+  const tracks = App.systemAudioStream ? App.systemAudioStream.getAudioTracks() : [];
+  console.log('[Sistema] Pistas:', tracks.length, tracks.map(t => `${t.label}(${t.readyState})`));
 
-    const ts = document.getElementById('transcriptStatus');
-    if (ts && ts.querySelector('.idle')) {
-      ts.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Transcribiendo sistema...</span>';
+  if (!tracks.length || tracks[0].readyState !== 'live') {
+    if (transcriptStatus) transcriptStatus.innerHTML =
+      '<span class="status-badge idle"><i class="fas fa-circle"></i> Sin audio del sistema</span>';
+    console.warn('[Sistema] Stream sin pistas activas');
+    return;
+  }
+
+  if (transcriptStatus) transcriptStatus.innerHTML =
+    '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando sistema...</span>';
+
+  // Primer chunk inmediato, luego cada 15s
+  _runSystemChunk();
+  App.systemTranscriptionInterval = setInterval(() => {
+    if (!App.systemAudioStream || !App.currentSession) {
+      clearInterval(App.systemTranscriptionInterval);
+      return;
     }
-    transcribeSystemAudioChunk();
+    const t = App.systemAudioStream.getAudioTracks();
+    if (!t.length || t[0].readyState !== 'live') {
+      clearInterval(App.systemTranscriptionInterval);
+      return;
+    }
+    _runSystemChunk();
   }, 15000);
 }
 
-async function transcribeSystemAudioChunk() {
-  // Bug anterior: usaba App.audioStream (mic) en vez de App.systemAudioStream
-  if (!App.systemAudioStream || !App.currentSession) return;
-  if (_systemMediaRecorder && _systemMediaRecorder.state === 'recording') return;
+function _runSystemChunk() {
+  if (_systemMediaRecorder && _systemMediaRecorder.state !== 'inactive') {
+    console.log('[Sistema] Recorder ocupado, saltando');
+    return;
+  }
 
   const apiKey = getGroqApiKey();
+  const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+    .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+  console.log('[Sistema] Chunk iniciado. MIME:', mimeType || 'default', '| Groq:', apiKey ? 'sí' : 'NO');
 
   try {
-    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
-      .find(m => MediaRecorder.isTypeSupported(m)) || '';
-
     _systemMediaRecorder = new MediaRecorder(App.systemAudioStream, mimeType ? { mimeType } : {});
-    const chunks = [];
-
-    _systemMediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-
-    _systemMediaRecorder.onstop = async () => {
-      _systemMediaRecorder = null;
-      if (!chunks.length) return;
-
-      const blobType = mimeType || 'audio/webm';
-      const blob = new Blob(chunks, { type: blobType });
-      if (blob.size < 1024) return; // silencio
-
-      if (!apiKey) {
-        // Sin Groq: intentar Speech Recognition no aplica para sistema,
-        // solo logueamos que el audio llegó pero no hay transcripción disponible
-        console.info('[Sistema] Audio grabado:', blob.size, 'bytes — configura Groq API key para transcribir el audio del sistema');
-        return;
-      }
-
-      // Enviar a Groq Whisper
-      const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
-      const formData = new FormData();
-      formData.append('file', blob, `system.${ext}`);
-      formData.append('model', 'whisper-large-v3-turbo');
-      formData.append('language', 'es');
-      formData.append('response_format', 'json');
-
-      try {
-        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}` },
-          body: formData
-        });
-
-        if (res.status === 401) {
-          showToast('❌ API key de Groq inválida. Verifica en Mis Datos.', 'error');
-          return;
-        }
-        if (!res.ok) {
-          console.warn('[Sistema] Groq falló:', res.status);
-          return;
-        }
-
-        const data = await res.json();
-        const text = data.text || '';
-        if (text.trim()) {
-          // Marcar la entrada como proveniente del sistema
-          addTranscriptEntry('[Sistema] ' + text.trim());
-        }
-      } catch (err) {
-        console.error('[Sistema] Error Groq:', err);
-      }
-    };
-
-    _systemMediaRecorder.onerror = () => { _systemMediaRecorder = null; };
-    _systemMediaRecorder.start();
-
-    setTimeout(() => {
-      if (_systemMediaRecorder && _systemMediaRecorder.state === 'recording') {
-        _systemMediaRecorder.stop();
-      }
-    }, 10000);
-
-  } catch (err) {
-    console.error('Error MediaRecorder sistema:', err);
+  } catch (e) {
+    console.error('[Sistema] MediaRecorder no se pudo crear:', e);
     _systemMediaRecorder = null;
+    return;
   }
+
+  const chunks = [];
+
+  _systemMediaRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) {
+      chunks.push(e.data);
+      console.log('[Sistema] Data:', e.data.size, 'bytes');
+    }
+  };
+
+  _systemMediaRecorder.onstop = async () => {
+    _systemMediaRecorder = null;
+    const total = chunks.reduce((s, c) => s + c.size, 0);
+    console.log('[Sistema] Stop. Chunks:', chunks.length, '| Total:', total, 'bytes');
+
+    if (!chunks.length || total < 512) {
+      console.warn('[Sistema] Sin audio real — stream silencioso o sin datos');
+      return;
+    }
+
+    const blobType = mimeType || 'audio/webm';
+    const blob = new Blob(chunks, { type: blobType });
+
+    if (!apiKey) {
+      console.info('[Sistema] Audio OK pero sin Groq key para transcribir');
+      showToast('ℹ️ Audio del sistema grabado — configura Groq key en Mis Datos', 'info');
+      return;
+    }
+
+    const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
+    const formData = new FormData();
+    formData.append('file', blob, `system.${ext}`);
+    formData.append('model', 'whisper-large-v3-turbo');
+    formData.append('language', 'es');
+    formData.append('response_format', 'json');
+
+    console.log('[Sistema] Enviando a Groq:', blob.size, 'bytes');
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        body: formData
+      });
+      console.log('[Sistema] Groq status:', res.status);
+      if (res.status === 401) { showToast('❌ Groq key inválida', 'error'); return; }
+      if (!res.ok) { console.warn('[Sistema] Groq error:', await res.text()); return; }
+      const data = await res.json();
+      console.log('[Sistema] Transcripción:', data.text);
+      if (data.text && data.text.trim()) addTranscriptEntry('[Sistema] ' + data.text.trim());
+    } catch (err) {
+      console.error('[Sistema] Fetch falló:', err);
+    }
+  };
+
+  _systemMediaRecorder.onerror = (e) => {
+    console.error('[Sistema] Error:', e);
+    _systemMediaRecorder = null;
+  };
+
+  _systemMediaRecorder.start(1000); // timeslice 1s para datos continuos
+
+  setTimeout(() => {
+    if (_systemMediaRecorder && _systemMediaRecorder.state !== 'inactive') {
+      _systemMediaRecorder.stop();
+    }
+  }, 10000);
 }
+
+// Alias para compatibilidad
+async function transcribeSystemAudioChunk() { _runSystemChunk(); }
 
 // ===== Transcripción del Micrófono (Groq Whisper → fallback Web Speech API) =====
 function startMicTranscription() {
