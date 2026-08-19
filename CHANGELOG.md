@@ -5,6 +5,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [3.1.0] - 2026-08-19
+
+### Changed
+- **Migración de Groq a OpenRouter** para el Resumen IA
+  - Groq deprecaba modelos frecuentemente, causando errores repetidos
+  - OpenRouter es un proxy estable con 20+ modelos gratuitos detrás de un solo endpoint
+  - El modelo `openrouter/auto` enruta automáticamente al mejor modelo gratuito disponible
+  - Compatible con OpenAI Chat Completions API, sin cambios en la lógica de prompts
+  - La API key de Groq existente sigue funcionando si el usuario la tiene guardada
+  - API key gratuita en: https://openrouter.ai/keys (sin tarjeta de crédito)
+
+---
+
 ## [3.0.4] - 2026-08-19
 
 ### Fixed

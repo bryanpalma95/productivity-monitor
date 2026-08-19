@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Reports Module v3.0.4
+   Productivity Monitor - Reports Module v3.1.0
    Reportes, exportación y análisis con IA
    ============================================================ */
 
@@ -292,33 +292,45 @@ function exportJSON() {
 const AI_CHUNK_SIZE = 4000;
 const AI_MAX_CHUNKS = 20;
 
-// Modelo activo y registro de cambios
-const GROQ_MODEL = 'gemma2-9b-it';
-const GROQ_MODEL_UPDATED = '2026-08-19'; // Actualizado desde qwen/qwen3 (id incorrecto) → gemma2-9b-it
+// Proveedor IA: OpenRouter — un endpoint estable con 20+ modelos gratuitos
+// El modelo 'openrouter/auto' enruta automáticamente al mejor modelo gratuito disponible
+// Docs: https://openrouter.ai/docs
+const AI_PROVIDER = 'openrouter';
+const AI_MODEL = 'openrouter/auto';
+const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const AI_MODEL_UPDATED = '2026-08-19'; // Migrado desde Groq (modelos deprecados frecuentemente)
 
-// Llama a Groq para generar texto
+// Llama a OpenRouter para generar texto
+// Requiere una API key de OpenRouter (gratuita, sin tarjeta): https://openrouter.ai/keys
 async function callGroqChat(messages) {
-  const apiKey = (typeof getGroqApiKey === 'function') ? getGroqApiKey() : localStorage.getItem('groq_api_key') || '';
-  if (!apiKey) throw new Error('No hay Groq API key configurada. Ve a Mis Datos para agregarla.');
+  // Compatible con la key existente: si hay groq_api_key la usamos, si no buscamos openrouter_api_key
+  const apiKey = (typeof getGroqApiKey === 'function') ? getGroqApiKey()
+    : localStorage.getItem('openrouter_api_key')
+    || localStorage.getItem('groq_api_key')
+    || '';
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  if (!apiKey) throw new Error('No hay API key configurada. Ve a Mis Datos y agrega tu key de OpenRouter (gratis en openrouter.ai/keys).');
+
+  const res = await fetch(AI_API_URL, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.origin,
+      'X-Title': 'Productivity Monitor'
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: AI_MODEL,
       messages,
       temperature: 0.3,
       max_tokens: 1024
     })
   });
 
-  if (res.status === 401) throw new Error('API key de Groq inválida. Verifica en Mis Datos.');
+  if (res.status === 401) throw new Error('API key inválida. Verifica en Mis Datos (openrouter.ai/keys).');
   if (!res.ok) {
     const err = await res.text();
-    throw new Error('Error Groq: ' + res.status + ' — ' + err.slice(0, 200));
+    throw new Error('Error OpenRouter: ' + res.status + ' — ' + err.slice(0, 200));
   }
 
   const data = await res.json();
@@ -557,8 +569,8 @@ function renderAISummaryResult(body, sessionId, summary) {
     <div class="ai-summary">
       <div class="ai-result">
         <h4><i class="fas fa-robot"></i> Resumen generado</h4>
-        <div class="ai-model-badge" title="Modelo actualizado el ${GROQ_MODEL_UPDATED}">
-          <i class="fas fa-microchip"></i> ${GROQ_MODEL}
+        <div class="ai-model-badge" title="Proveedor: OpenRouter — enruta al mejor modelo gratuito disponible. Actualizado el ${AI_MODEL_UPDATED}">
+          <i class="fas fa-microchip"></i> ${AI_PROVIDER} / auto
         </div>
         <div class="ai-text">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
       </div>
