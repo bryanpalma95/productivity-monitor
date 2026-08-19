@@ -289,6 +289,45 @@ function exportJSON() {
 }
 
 // ===== Resumen IA =====
+// Constantes de configuración
+const AI_CHUNK_SIZE = 4000;      // Caracteres por fragmento (~5-7 min de transcripción)
+const AI_MAX_CHUNKS = 20;        // Máximo de fragmentos a procesar (~2 horas de transcripción)
+
+// Función auxiliar para llamar a la API de OmniRoute
+async function callOmniRoute(messages) {
+  const response = await fetch('https://omniroute.vercel.app/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'auto/best-chat',
+      messages
+    })
+  });
+  if (!response.ok) throw new Error('Error en la API');
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || data.message?.content || 'No se pudo generar el resumen.';
+}
+
+// Función para dividir la transcripción en fragmentos
+function splitTranscriptIntoChunks(transcripts, chunkSize) {
+  const chunks = [];
+  let current = [];
+
+  transcripts.forEach(t => {
+    const line = `[${formatTime(t.timestamp)}] ${t.text}`;
+    const currentLength = current.join('\n').length;
+    if (currentLength + line.length > chunkSize && current.length > 0) {
+      chunks.push(current.join('\n'));
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  });
+
+  if (current.length > 0) chunks.push(current.join('\n'));
+  return chunks;
+}
+
 async function generateAISummary(sessionId) {
   const session = Storage.getSession(sessionId);
   if (!session) return;
@@ -308,25 +347,24 @@ async function generateAISummary(sessionId) {
   `;
 
   const transcripts = session.transcripts || [];
-  // Incluir timestamps en las transcripciones para mejor contexto
-  const transcriptText = transcripts
-    .map(t => `[${formatTime(t.timestamp)}] ${t.text}`)
-    .join('\n')
-    .slice(0, 4000);
-
   const screenshots = session.screenshots || [];
   const sessionDate = session.startedAt ? formatDateTime(session.startedAt) : 'Desconocida';
 
+  // Dividir la transcripción completa en fragmentos
+  const chunks = splitTranscriptIntoChunks(transcripts, AI_CHUNK_SIZE);
+  const chunksToProcess = chunks.slice(0, AI_MAX_CHUNKS);
+  const totalChunks = chunks.length;
+  const isTruncated = totalChunks > AI_MAX_CHUNKS;
+
   try {
-    const response = await fetch('https://omniroute.vercel.app/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'auto/best-chat',
-        messages: [
-          {
-            role: 'system',
-            content: `Eres un analista experto en productividad y gestión del tiempo. 
+    // Si hay 1 solo fragmento, generar el resumen directamente
+    if (chunksToProcess.length <= 1) {
+      const transcriptText = chunksToProcess[0] || '';
+
+      const summary = await callOmniRoute([
+        {
+          role: 'system',
+          content: `Eres un analista experto en productividad y gestión del tiempo. 
 Analiza la sesión de trabajo y genera un resumen profesional en español con el siguiente formato Markdown:
 
 ## 📌 Resumen Ejecutivo
@@ -352,10 +390,10 @@ Reglas:
 - Sé conciso y específico, basado SOLO en la información proporcionada
 - No inventes datos que no estén en la transcripción
 - Si no hay transcripciones, indícalo y sugiere qué información faltó`
-          },
-          {
-            role: 'user',
-            content: `Sesión: ${session.title}
+        },
+        {
+          role: 'user',
+          content: `Sesión: ${session.title}
 Tipo: ${getTypeLabel(session.type)}
 Fecha: ${sessionDate}
 Duración: ${formatDuration(session.duration || 0)}
@@ -364,41 +402,115 @@ Transcripciones: ${transcripts.length}
 
 Transcripción:
 ${transcriptText || 'Sin transcripciones disponibles'}`
-          }
-        ]
-      })
-    });
+        }
+      ]);
 
-    if (!response.ok) throw new Error('Error en la API');
+      window._lastAISummary = summary;
+      renderAISummaryResult(body, session.id, summary);
+      return;
+    }
 
-    const data = await response.json();
-    const summary = data.choices?.[0]?.message?.content || data.message?.content || 'No se pudo generar el resumen.';
+    // Si hay múltiples fragmentos, generar resumen parcial de cada uno
+    const partialSummaries = [];
+    for (let i = 0; i < chunksToProcess.length; i++) {
+      // Actualizar el indicador de progreso
+      body.innerHTML = `
+        <div class="ai-summary">
+          <div class="ai-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Analizando parte ${i + 1} de ${chunksToProcess.length}...</p>
+            <div class="ai-progress">
+              <div class="ai-progress-bar" style="width:${Math.round(((i) / chunksToProcess.length) * 100)}%"></div>
+            </div>
+          </div>
+        </div>
+      `;
 
-    // Guardar el resumen para copiar/descargar
-    window._lastAISummary = summary;
+      const partial = await callOmniRoute([
+        {
+          role: 'system',
+          content: `Eres un analista experto en productividad. Analiza este FRAGMENTO de una sesión de trabajo y genera un resumen breve en español con:
+1) Temas principales
+2) Tareas realizadas
+3) Pendientes o puntos de acción
 
+Sé conciso (máximo 150 palabras). Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga.`
+        },
+        {
+          role: 'user',
+          content: `Fragmento ${i + 1} de ${chunksToProcess.length} de la sesión "${session.title}":
+${chunksToProcess[i]}`
+        }
+      ]);
+
+      partialSummaries.push(partial);
+    }
+
+    // Actualizar el indicador de progreso
     body.innerHTML = `
       <div class="ai-summary">
-        <div class="ai-result">
-          <h4><i class="fas fa-robot"></i> Resumen generado</h4>
-          <div class="ai-text">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
-        </div>
-        <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="copyAISummary()">
-            <i class="fas fa-copy"></i> Copiar
-          </button>
-          <button class="btn btn-secondary" onclick="downloadAISummary('${session.id}')">
-            <i class="fas fa-download"></i> Descargar
-          </button>
-          <button class="btn btn-primary" onclick="generateAISummary('${session.id}')">
-            <i class="fas fa-redo"></i> Regenerar
-          </button>
-          <button class="btn btn-secondary" onclick="closeModal()">
-            <i class="fas fa-times"></i> Cerrar
-          </button>
+        <div class="ai-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Combinando resúmenes parciales...</p>
+          <div class="ai-progress">
+            <div class="ai-progress-bar" style="width:100%"></div>
+          </div>
         </div>
       </div>
     `;
+
+    // Combinar los resúmenes parciales en un resumen final
+    const combinedSummaries = partialSummaries.map((s, i) => `--- Parte ${i + 1} ---\n${s}`).join('\n\n');
+
+    const finalSummary = await callOmniRoute([
+      {
+        role: 'system',
+        content: `Eres un analista experto en productividad y gestión del tiempo. 
+Recibes los resúmenes parciales de una sesión de trabajo completa (dividida en partes). 
+Genera un resumen FINAL consolidado y profesional en español con el siguiente formato Markdown:
+
+## 📌 Resumen Ejecutivo
+(2-3 oraciones que resuman el propósito y resultado de TODA la sesión)
+
+## 🎯 Temas Principales
+- Tema 1
+- Tema 2
+- Tema 3
+
+## ✅ Tareas Realizadas
+- Tarea 1
+- Tarea 2
+
+## 📋 Pendientes / Puntos de Acción
+- [ ] Acción 1
+- [ ] Acción 2
+
+## 💡 Observaciones
+(1-2 oraciones con insights, riesgos o recomendaciones)
+
+Reglas:
+- Consolida la información de TODAS las partes sin repetir
+- Sé conciso y específico
+- No inventes datos que no estén en los resúmenes parciales`
+        },
+        {
+          role: 'user',
+          content: `Sesión: ${session.title}
+Tipo: ${getTypeLabel(session.type)}
+Fecha: ${sessionDate}
+Duración: ${formatDuration(session.duration || 0)}
+Capturas de pantalla: ${screenshots.length}
+Transcripciones: ${transcripts.length}
+${isTruncated ? `\n⚠️ Nota: La sesión tiene ${totalChunks} partes, pero solo se analizaron las primeras ${chunksToProcess.length} por límite de procesamiento.` : ''}
+
+Resúmenes parciales:
+${combinedSummaries}`
+        }
+      ]);
+
+      window._lastAISummary = finalSummary;
+      renderAISummaryResult(body, session.id, finalSummary);
+
   } catch (err) {
     console.error('Error generando resumen IA:', err);
     body.innerHTML = `
@@ -420,6 +532,32 @@ ${transcriptText || 'Sin transcripciones disponibles'}`
       </div>
     `;
   }
+}
+
+// Función para renderizar el resultado del resumen IA
+function renderAISummaryResult(body, sessionId, summary) {
+  body.innerHTML = `
+    <div class="ai-summary">
+      <div class="ai-result">
+        <h4><i class="fas fa-robot"></i> Resumen generado</h4>
+        <div class="ai-text">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
+      </div>
+      <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="copyAISummary()">
+          <i class="fas fa-copy"></i> Copiar
+        </button>
+        <button class="btn btn-secondary" onclick="downloadAISummary('${sessionId}')">
+          <i class="fas fa-download"></i> Descargar
+        </button>
+        <button class="btn btn-primary" onclick="generateAISummary('${sessionId}')">
+          <i class="fas fa-redo"></i> Regenerar
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal()">
+          <i class="fas fa-times"></i> Cerrar
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 // ===== Copiar resumen IA al portapapeles =====
