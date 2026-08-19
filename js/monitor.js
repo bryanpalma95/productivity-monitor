@@ -1,12 +1,16 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v2.3.0
+   Productivity Monitor - Monitor Module v2.4.0
    Captura de pantalla, audio y transcripción en vivo
-   Micrófono y sistema usan Whisper via OmniRoute (no SpeechRecognition)
+   Micrófono: Web Speech API con reintentos robustos
+   Audio sistema: MediaRecorder (sin API externa)
    ============================================================ */
 
-// Referencia al MediaRecorder activo (micrófono o sistema) — evita instancias zombie
+// Referencia al MediaRecorder activo (sistema) — evita instancias zombie
 let _systemMediaRecorder = null;
 let _micMediaRecorder = null;
+let _speechRetryCount = 0;
+let _speechRetryTimer = null;
+const _MAX_SPEECH_RETRIES = 10;
 
 // ===== Captura de Pantalla =====
 async function startScreenCapture() {
@@ -144,10 +148,10 @@ function handleAudioSourceChange() {
   const btnStart = document.getElementById('btnStartAudio');
 
   if (source === 'system') {
-    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema requiere compartir pantalla con audio. Se transcribe usando IA (Whisper).</span>';
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El audio del sistema captura el sonido pero no lo transcribe automáticamente. Usa el micrófono para transcripción en vivo.</span>';
     btnStart.innerHTML = '<i class="fas fa-volume-up"></i> Iniciar Audio del Sistema';
   } else {
-    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El micrófono se transcribe cada 15 segundos usando IA (Whisper). Funciona en cualquier navegador.</span>';
+    hint.innerHTML = '<i class="fas fa-info-circle"></i> <span>El micrófono transcribe en tiempo real usando el reconocimiento de voz del navegador (Chrome/Edge recomendado).</span>';
     btnStart.innerHTML = '<i class="fas fa-microphone"></i> Iniciar Micrófono';
   }
 }
@@ -188,7 +192,7 @@ async function startAudioCapture() {
 
       showToast('🔊 Audio del sistema y transcripción iniciados');
     } else {
-      // Micrófono: usa getUserMedia + Whisper via OmniRoute (igual que audio del sistema)
+      // Micrófono: Web Speech API con reintentos automáticos
       App.audioStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -206,7 +210,7 @@ async function startAudioCapture() {
       const status = document.getElementById('audioStatus');
       status.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Grabando</span>';
 
-      showToast('🎤 Micrófono iniciado. Transcripción cada 15 seg via Whisper');
+      showToast('🎤 Micrófono iniciado');
     }
   } catch (err) {
     console.error('Error al iniciar audio:', err);
@@ -276,33 +280,11 @@ async function transcribeSystemAudioChunk() {
       // Verificar que el blob tiene contenido real (>1KB) para evitar enviar silencio
       if (blob.size < 1024) return;
 
-      // Enviar a la API de transcripción de OmniRoute
-      const formData = new FormData();
-      // Usar extensión según el tipo de audio
-      const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
-      formData.append('file', blob, `audio.${ext}`);
-      formData.append('model', 'af/whisper-1');
-
-      try {
-        const response = await fetch('https://omniroute.vercel.app/api/audio', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!response.ok) {
-          console.warn('Transcripción falló:', response.status);
-          return;
-        }
-
-        const data = await response.json();
-        const text = data.text || data.transcript || '';
-
-        if (text && text.trim()) {
-          addTranscriptEntry(text.trim());
-        }
-      } catch (err) {
-        console.error('Error en transcripción:', err);
-      }
+      // Enviar a la API de transcripción
+      // NOTA: omniroute.vercel.app está caído — el audio del sistema
+      // se registra pero no se transcribe automáticamente en esta versión.
+      // La transcripción del micrófono usa Web Speech API.
+      console.info('Audio del sistema grabado:', blob.size, 'bytes — transcripción de sistema no disponible actualmente');
     };
 
     _systemMediaRecorder.onerror = (e) => {
@@ -325,99 +307,140 @@ async function transcribeSystemAudioChunk() {
   }
 }
 
-// ===== Transcripción del Micrófono (via Whisper/OmniRoute) =====
+// ===== Transcripción del Micrófono (Web Speech API con reintentos) =====
 function startMicTranscription() {
-  const transcriptStatus = document.getElementById('transcriptStatus');
+  _speechRetryCount = 0;
+  clearTimeout(_speechRetryTimer);
+  _initSpeechRecognition();
+}
 
-  if (!App.currentSession) {
-    transcriptStatus.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Esperando sesión...</span>';
-    showToast('ℹ️ Micrófono listo. La transcripción comenzará al iniciar una sesión.', 'info');
-  } else {
-    transcriptStatus.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando (Whisper)...</span>';
+function _initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.', 'error');
+    stopAudioCapture();
+    return;
   }
 
-  clearInterval(App.micTranscriptionInterval);
-  App.micTranscriptionInterval = setInterval(() => {
-    if (!App.audioStream) return;
-    if (!App.currentSession) return;
+  // Limpiar instancia anterior
+  if (App.recognition) {
+    try { App.recognition.abort(); } catch (e) {}
+    App.recognition = null;
+  }
 
+  const rec = new SpeechRecognition();
+  rec.lang = 'es-ES';
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  App.recognition = rec;
+
+  rec.onstart = () => {
+    _speechRetryCount = 0; // Reiniciar contador al conectar exitosamente
     const ts = document.getElementById('transcriptStatus');
-    if (ts && ts.querySelector('.idle')) {
-      ts.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando (Whisper)...</span>';
+    if (ts) ts.innerHTML = '<span class="status-badge active"><i class="fas fa-circle"></i> Escuchando...</span>';
+  };
+
+  rec.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        if (transcript.trim()) addTranscriptEntry(transcript.trim());
+      } else {
+        interim += transcript;
+      }
+    }
+    const liveTranscript = document.getElementById('liveTranscript');
+    if (liveTranscript && interim) {
+      // Mostrar texto provisional sin guardarlo
+      const existing = liveTranscript.querySelector('.interim');
+      if (existing) {
+        existing.querySelector('.transcript-text').textContent = interim;
+      } else {
+        const div = document.createElement('div');
+        div.className = 'transcript-entry interim';
+        div.innerHTML = `<span class="transcript-time">${formatTime(Date.now())}</span><span class="transcript-text">${escapeHtml(interim)}</span>`;
+        if (liveTranscript.querySelector('.empty-state')) liveTranscript.innerHTML = '';
+        liveTranscript.appendChild(div);
+        liveTranscript.scrollTop = liveTranscript.scrollHeight;
+      }
+    }
+  };
+
+  rec.onerror = (event) => {
+    console.warn('SpeechRecognition error:', event.error);
+    const ts = document.getElementById('transcriptStatus');
+
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      showToast('❌ Permiso de micrófono denegado o servicio bloqueado.', 'error');
+      stopAudioCapture();
+      return;
     }
 
-    transcribeMicChunk();
-  }, 15000);
-}
+    if (event.error === 'network') {
+      // Error transitorio de red — reintentar con backoff
+      _speechRetryCount++;
+      const delay = Math.min(2000 * _speechRetryCount, 15000);
+      if (ts) ts.innerHTML = `<span class="status-badge idle"><i class="fas fa-circle"></i> Reintentando (${_speechRetryCount})...</span>`;
 
-async function transcribeMicChunk() {
-  if (!App.audioStream || !App.currentSession) return;
-  if (_micMediaRecorder && _micMediaRecorder.state === 'recording') return;
+      if (_speechRetryCount <= _MAX_SPEECH_RETRIES) {
+        clearTimeout(_speechRetryTimer);
+        _speechRetryTimer = setTimeout(() => {
+          if (App.audioStream && !App.privacyMode) {
+            _initSpeechRecognition();
+          }
+        }, delay);
+      } else {
+        showToast('❌ No se pudo conectar al servicio de voz tras varios intentos.', 'error');
+        if (ts) ts.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Sin conexión al servicio de voz</span>';
+      }
+      return;
+    }
+
+    // no-speech, audio-capture: errores normales, onend reiniciará
+  };
+
+  rec.onend = () => {
+    // Limpiar texto provisional
+    const liveTranscript = document.getElementById('liveTranscript');
+    if (liveTranscript) {
+      const interim = liveTranscript.querySelector('.interim');
+      if (interim) interim.remove();
+    }
+
+    // Reiniciar solo si el audio sigue activo, no fue parado intencionalmente,
+    // y no hay un reintento por error de red ya programado
+    if (App.audioStream && !App.privacyMode && App.recognition && !_speechRetryTimer) {
+      try {
+        App.recognition.start();
+      } catch (e) {
+        // Puede fallar si ya está iniciando — ignorar
+      }
+    }
+  };
 
   try {
-    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
-      .find(m => MediaRecorder.isTypeSupported(m)) || '';
-
-    const recorderOptions = mimeType ? { mimeType } : {};
-    _micMediaRecorder = new MediaRecorder(App.audioStream, recorderOptions);
-    const chunks = [];
-
-    _micMediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-
-    _micMediaRecorder.onstop = async () => {
-      _micMediaRecorder = null;
-      if (chunks.length === 0) return;
-
-      const blobType = mimeType || 'audio/webm';
-      const blob = new Blob(chunks, { type: blobType });
-      if (blob.size < 1024) return; // silencio
-
-      const formData = new FormData();
-      const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
-      formData.append('file', blob, `mic.${ext}`);
-      formData.append('model', 'af/whisper-1');
-
-      try {
-        const response = await fetch('https://omniroute.vercel.app/api/audio', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!response.ok) {
-          console.warn('Transcripción mic falló:', response.status);
-          return;
-        }
-
-        const data = await response.json();
-        const text = data.text || data.transcript || '';
-        if (text && text.trim()) {
-          addTranscriptEntry(text.trim());
-        }
-      } catch (err) {
-        console.error('Error transcribiendo mic:', err);
-      }
-    };
-
-    _micMediaRecorder.onerror = (e) => {
-      console.error('MediaRecorder mic error:', e.error);
-      _micMediaRecorder = null;
-    };
-
-    _micMediaRecorder.start();
-
-    setTimeout(() => {
-      if (_micMediaRecorder && _micMediaRecorder.state === 'recording') {
-        _micMediaRecorder.stop();
-      }
-    }, 10000);
-
-  } catch (err) {
-    console.error('Error iniciando grabación de mic:', err);
-    _micMediaRecorder = null;
+    rec.start();
+  } catch (e) {
+    console.error('Error iniciando SpeechRecognition:', e);
   }
 }
+
+function stopMicTranscription() {
+  clearTimeout(_speechRetryTimer);
+  _speechRetryTimer = null;
+  _speechRetryCount = 0;
+
+  if (App.recognition) {
+    const rec = App.recognition;
+    App.recognition = null;
+    try { rec.abort(); } catch (e) {}
+  }
+}
+
+// transcribeMicChunk eliminado — reemplazado por SpeechRecognition robusta
 
 function stopAudioCapture() {
   // Detener el MediaRecorder del sistema si está activo
@@ -426,13 +449,16 @@ function stopAudioCapture() {
   }
   _systemMediaRecorder = null;
 
-  // Detener el MediaRecorder del micrófono si está activo
+  // Detener MediaRecorder del mic si existe
   if (_micMediaRecorder && _micMediaRecorder.state !== 'inactive') {
     try { _micMediaRecorder.stop(); } catch (e) {}
   }
   _micMediaRecorder = null;
 
-  // Detener intervalos de transcripción
+  // Detener SpeechRecognition y sus reintentos
+  stopMicTranscription();
+
+  // Detener intervalos de transcripción del sistema
   clearInterval(App.systemTranscriptionInterval);
   App.systemTranscriptionInterval = null;
   clearInterval(App.micTranscriptionInterval);
@@ -441,13 +467,6 @@ function stopAudioCapture() {
   if (App.audioStream) {
     App.audioStream.getTracks().forEach(t => t.stop());
     App.audioStream = null;
-  }
-
-  // App.recognition ya no se usa (reemplazado por Whisper), pero limpiamos por si acaso
-  if (App.recognition) {
-    const rec = App.recognition;
-    App.recognition = null;
-    try { rec.stop(); } catch (e) {}
   }
 
   if (App.audioContext) {
