@@ -1,7 +1,10 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v2.1.0
+   Productivity Monitor - Monitor Module v2.2.0
    Captura de pantalla, audio y transcripción en vivo
    ============================================================ */
+
+// Referencia al MediaRecorder activo del audio del sistema (evita instancias zombie)
+let _systemMediaRecorder = null;
 
 // ===== Captura de Pantalla =====
 async function startScreenCapture() {
@@ -66,11 +69,8 @@ function stopScreenCapture() {
     App.screenStream = null;
   }
 
-  // Detener también el audio del sistema capturado
-  if (App.systemAudioStream) {
-    App.systemAudioStream.getTracks().forEach(t => t.stop());
-    App.systemAudioStream = null;
-  }
+  // Solo limpiar la referencia; las pistas ya fueron detenidas con screenStream
+  App.systemAudioStream = null;
 
   clearInterval(App.screenshotInterval);
   App.screenshotInterval = null;
@@ -172,7 +172,9 @@ async function startAudioCapture() {
         return;
       }
 
-      App.audioStream = new MediaStream(audioTracks);
+      // Clonar las pistas para que detener el audioStream NO afecte al screenStream
+      const clonedTracks = audioTracks.map(t => t.clone());
+      App.audioStream = new MediaStream(clonedTracks);
       setupAudioVisualizer();
       startSystemAudioTranscription();
 
@@ -237,22 +239,37 @@ function startSystemAudioTranscription() {
 async function transcribeSystemAudioChunk() {
   if (!App.audioStream || !App.currentSession) return;
 
+  // Si hay un recorder activo de la ronda anterior, no crear otro
+  if (_systemMediaRecorder && _systemMediaRecorder.state === 'recording') return;
+
   try {
-    // Capturar un chunk de audio del stream
-    const mediaRecorder = new MediaRecorder(App.audioStream);
+    // Determinar el MIME type soportado por el navegador
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+      .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+    const recorderOptions = mimeType ? { mimeType } : {};
+    _systemMediaRecorder = new MediaRecorder(App.audioStream, recorderOptions);
     const chunks = [];
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
+    _systemMediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
     };
 
-    mediaRecorder.onstop = async () => {
+    _systemMediaRecorder.onstop = async () => {
+      _systemMediaRecorder = null;
       if (chunks.length === 0) return;
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+
+      const blobType = mimeType || 'audio/webm';
+      const blob = new Blob(chunks, { type: blobType });
+
+      // Verificar que el blob tiene contenido real (>1KB) para evitar enviar silencio
+      if (blob.size < 1024) return;
 
       // Enviar a la API de transcripción de OmniRoute
       const formData = new FormData();
-      formData.append('file', blob, 'audio.webm');
+      // Usar extensión según el tipo de audio
+      const ext = blobType.includes('ogg') ? 'ogg' : blobType.includes('mp4') ? 'mp4' : 'webm';
+      formData.append('file', blob, `audio.${ext}`);
       formData.append('model', 'af/whisper-1');
 
       try {
@@ -277,30 +294,48 @@ async function transcribeSystemAudioChunk() {
       }
     };
 
-    mediaRecorder.start();
+    _systemMediaRecorder.onerror = (e) => {
+      console.error('MediaRecorder error:', e.error);
+      _systemMediaRecorder = null;
+    };
+
+    _systemMediaRecorder.start();
+
+    // Detener después de 10 segundos para enviar el chunk
     setTimeout(() => {
-      if (mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+      if (_systemMediaRecorder && _systemMediaRecorder.state === 'recording') {
+        _systemMediaRecorder.stop();
       }
     }, 10000);
+
   } catch (err) {
     console.error('Error capturando audio del sistema:', err);
+    _systemMediaRecorder = null;
   }
 }
 
 function stopAudioCapture() {
-  if (App.audioStream) {
-    App.audioStream.getTracks().forEach(t => t.stop());
-    App.audioStream = null;
+  // Detener el MediaRecorder del sistema si está activo
+  if (_systemMediaRecorder && _systemMediaRecorder.state !== 'inactive') {
+    try { _systemMediaRecorder.stop(); } catch (e) {}
   }
+  _systemMediaRecorder = null;
 
   // Detener transcripción del audio del sistema
   clearInterval(App.systemTranscriptionInterval);
   App.systemTranscriptionInterval = null;
 
+  if (App.audioStream) {
+    // Detener las pistas del stream de audio (son clones si era audio del sistema,
+    // o pistas reales del mic — en ambos casos es seguro detenerlas)
+    App.audioStream.getTracks().forEach(t => t.stop());
+    App.audioStream = null;
+  }
+
   if (App.recognition) {
-    App.recognition.stop();
-    App.recognition = null;
+    const rec = App.recognition;
+    App.recognition = null; // Nullificar antes de stop() para que onend no reinicie
+    rec.stop();
   }
 
   if (App.audioContext) {
@@ -327,6 +362,12 @@ function stopAudioCapture() {
 
 function setupAudioVisualizer() {
   App.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+  // En HTTPS/Chrome el AudioContext puede arrancar suspendido — reactivarlo
+  if (App.audioContext.state === 'suspended') {
+    App.audioContext.resume().catch(err => console.warn('AudioContext resume fallido:', err));
+  }
+
   const source = App.audioContext.createMediaStreamSource(App.audioStream);
   App.analyser = App.audioContext.createAnalyser();
   App.analyser.fftSize = 256;
@@ -394,10 +435,13 @@ function startSpeechRecognition() {
   };
 
   App.recognition.onend = () => {
-    if (App.audioStream && !App.privacyMode) {
+    // Solo reiniciar si el stream sigue activo y el recognition no fue detenido intencionalmente
+    if (App.audioStream && !App.privacyMode && App.recognition) {
       try {
         App.recognition.start();
-      } catch (e) {}
+      } catch (e) {
+        // Ignorar errores de inicio (e.g. ya está iniciado)
+      }
     }
   };
 
