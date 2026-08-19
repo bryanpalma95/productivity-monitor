@@ -5,6 +5,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [3.2.0] - 2026-08-19
+
+### Changed
+- **Prompt del Resumen IA completamente reescrito** — de genérico a minutas ejecutivas detalladas
+  - Nuevo formato: Resumen Ejecutivo, Datos de sesión (tabla), Temas Tratados, Decisiones y Acuerdos, Fechas y Plazos, Tareas Realizadas, Compromisos y Pendientes, Observaciones
+  - El modelo ahora extrae nombres, fechas concretas, decisiones y compromisos
+  - Instrucción explícita de ser exhaustivo en vez de conciso
+
+### Added
+- **Renderer Markdown** (`renderMarkdown`) — el resumen ahora se muestra con formato HTML real
+  - Encabezados, tablas, checkboxes, listas, bold, separadores renderizados correctamente
+  - Estilos CSS para `.ai-table`, `.ai-check`, `.ai-hr`, `.ai-footnote` y encabezados jerárquicos
+
+---
+
 ## [3.1.1] - 2026-08-19
 
 ### Added

@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Reports Module v3.1.1
+   Productivity Monitor - Reports Module v3.2.0
    Reportes, exportación y análisis con IA
    ============================================================ */
 
@@ -390,32 +390,58 @@ async function generateAISummary(sessionId) {
       const summary = await callGroqChat([
         {
           role: 'system',
-          content: `Eres un analista experto en productividad y gestión del tiempo. 
-Analiza la sesión de trabajo y genera un resumen profesional en español con el siguiente formato Markdown:
+          content: `Eres un secretario ejecutivo experto en tomar minutas de reuniones y sesiones de trabajo. 
+Analiza la transcripción y genera un informe DETALLADO en español con el siguiente formato Markdown.
+Extrae TODA la información concreta que encuentres: nombres, fechas, números, decisiones, compromisos.
+
+# 📋 Informe de Sesión
 
 ## 📌 Resumen Ejecutivo
-(2-3 oraciones que resuman el propósito y resultado de la sesión)
+(3-4 oraciones describiendo el propósito, contexto y resultado principal de la sesión)
 
-## 🎯 Temas Principales
-- Tema 1
-- Tema 2
-- Tema 3
+## 🗓️ Datos de la Sesión
+| Campo | Valor |
+|-------|-------|
+| Fecha | (fecha de la sesión) |
+| Duración | (duración) |
+| Tipo | (tipo de sesión) |
+| Participantes | (nombres mencionados, o "No identificados") |
 
-## ✅ Tareas Realizadas
-- Tarea 1
-- Tarea 2
+## 🎯 Temas Tratados
+(Lista detallada de TODOS los temas discutidos, con contexto)
+- **Tema 1**: descripción detallada de qué se habló
+- **Tema 2**: descripción detallada
 
-## 📋 Pendientes / Puntos de Acción
-- [ ] Acción 1
-- [ ] Acción 2
+## ✅ Decisiones y Acuerdos
+(Decisiones concretas tomadas durante la sesión)
+- Decisión 1
+- Decisión 2
 
-## 💡 Observaciones
-(1-2 oraciones con insights, riesgos o recomendaciones)
+## 📅 Fechas y Plazos Mencionados
+(Extrae TODAS las fechas, deadlines, plazos o hitos mencionados)
+- Fecha/plazo 1
+- Fecha/plazo 2
 
-Reglas:
-- Sé conciso y específico, basado SOLO en la información proporcionada
-- No inventes datos que no estén en la transcripción
-- Si no hay transcripciones, indícalo y sugiere qué información faltó`
+## ✔️ Tareas Realizadas
+- Tarea completada 1
+- Tarea completada 2
+
+## 📋 Compromisos y Pendientes
+(Tareas asignadas o prometidas, con responsable si se menciona)
+- [ ] Tarea pendiente — Responsable: (nombre o "Sin asignar")
+- [ ] Tarea pendiente 2
+
+## 💡 Observaciones y Riesgos
+(Problemas identificados, riesgos, bloqueos o puntos de atención)
+
+---
+*Generado automáticamente a partir de la transcripción de la sesión*
+
+REGLAS IMPORTANTES:
+- Sé EXHAUSTIVO y DETALLADO — más información es mejor que menos
+- Extrae nombres propios, fechas, números y datos concretos que aparezcan en la transcripción
+- Si un campo no tiene información, escribe "No se identificó en la transcripción"
+- No inventes datos, solo usa lo que está en la transcripción`
         },
         {
           role: 'user',
@@ -424,9 +450,9 @@ Tipo: ${getTypeLabel(session.type)}
 Fecha: ${sessionDate}
 Duración: ${formatDuration(session.duration || 0)}
 Capturas de pantalla: ${screenshots.length}
-Transcripciones: ${transcripts.length}
+Líneas de transcripción: ${transcripts.length}
 
-Transcripción:
+Transcripción completa:
 ${transcriptText || 'Sin transcripciones disponibles'}`
         }
       ]);
@@ -491,33 +517,52 @@ ${chunksToProcess[i]}`
     const finalSummary = await callGroqChat([
       {
         role: 'system',
-        content: `Eres un analista experto en productividad y gestión del tiempo. 
-Recibes los resúmenes parciales de una sesión de trabajo completa (dividida en partes). 
-Genera un resumen FINAL consolidado y profesional en español con el siguiente formato Markdown:
+        content: `Eres un secretario ejecutivo experto en tomar minutas de reuniones y sesiones de trabajo.
+Recibes resúmenes parciales de una sesión larga dividida en partes.
+Consolida TODO en un informe DETALLADO en español con este formato Markdown.
+Extrae TODA la información concreta: nombres, fechas, números, decisiones, compromisos.
+
+# 📋 Informe de Sesión
 
 ## 📌 Resumen Ejecutivo
-(2-3 oraciones que resuman el propósito y resultado de TODA la sesión)
+(3-4 oraciones describiendo el propósito, contexto y resultado principal)
 
-## 🎯 Temas Principales
-- Tema 1
-- Tema 2
-- Tema 3
+## 🗓️ Datos de la Sesión
+| Campo | Valor |
+|-------|-------|
+| Fecha | (fecha de la sesión) |
+| Duración | (duración) |
+| Tipo | (tipo de sesión) |
+| Participantes | (nombres mencionados, o "No identificados") |
 
-## ✅ Tareas Realizadas
+## 🎯 Temas Tratados
+- **Tema 1**: descripción detallada
+- **Tema 2**: descripción detallada
+
+## ✅ Decisiones y Acuerdos
+- Decisión 1
+- Decisión 2
+
+## 📅 Fechas y Plazos Mencionados
+- Fecha/plazo 1
+- Fecha/plazo 2
+
+## ✔️ Tareas Realizadas
 - Tarea 1
-- Tarea 2
 
-## 📋 Pendientes / Puntos de Acción
-- [ ] Acción 1
-- [ ] Acción 2
+## 📋 Compromisos y Pendientes
+- [ ] Tarea — Responsable: (nombre o "Sin asignar")
 
-## 💡 Observaciones
-(1-2 oraciones con insights, riesgos o recomendaciones)
+## 💡 Observaciones y Riesgos
 
-Reglas:
-- Consolida la información de TODAS las partes sin repetir
-- Sé conciso y específico
-- No inventes datos que no estén en los resúmenes parciales`
+---
+*Generado automáticamente a partir de la transcripción de la sesión*
+
+REGLAS:
+- Sé EXHAUSTIVO — más detalle es mejor
+- Consolida sin repetir, pero no omitas información importante
+- Si un campo no tiene datos, escribe "No se identificó en la transcripción"
+- No inventes datos`
         },
         {
           role: 'user',
@@ -525,11 +570,9 @@ Reglas:
 Tipo: ${getTypeLabel(session.type)}
 Fecha: ${sessionDate}
 Duración: ${formatDuration(session.duration || 0)}
-Capturas de pantalla: ${screenshots.length}
-Transcripciones: ${transcripts.length}
-${isTruncated ? `\n⚠️ Nota: La sesión tiene ${totalChunks} partes, pero solo se analizaron las primeras ${chunksToProcess.length} por límite de procesamiento.` : ''}
+${isTruncated ? `⚠️ Nota: sesión con ${totalChunks} partes, se analizaron las primeras ${chunksToProcess.length}.` : ''}
 
-Resúmenes parciales:
+Resúmenes parciales a consolidar:
 ${combinedSummaries}`
         }
       ]);
@@ -560,6 +603,49 @@ ${combinedSummaries}`
   }
 }
 
+// Convierte Markdown básico a HTML para renderizar el resumen
+function renderMarkdown(text) {
+  return text
+    // Escapar HTML primero para seguridad
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Encabezados
+    .replace(/^# (.+)$/gm, '<h2 class="ai-h1">$1</h2>')
+    .replace(/^## (.+)$/gm, '<h3 class="ai-h2">$1</h3>')
+    .replace(/^### (.+)$/gm, '<h4 class="ai-h3">$1</h4>')
+    // Tablas Markdown simples: | col | col |
+    .replace(/^\|(.+)\|$/gm, (match) => {
+      const cols = match.split('|').slice(1, -1);
+      const isSeparator = cols.every(c => /^[\s\-:]+$/.test(c));
+      if (isSeparator) return '<tr class="ai-table-sep"></tr>';
+      const tag = 'td';
+      return '<tr>' + cols.map(c => `<${tag} class="ai-td">${c.trim()}</${tag}>`).join('') + '</tr>';
+    })
+    // Envolver filas de tabla en <table>
+    .replace(/(<tr>[\s\S]*?<\/tr>(\n<tr class="ai-table-sep"><\/tr>)?(\n<tr>[\s\S]*?<\/tr>)*)/g, (match) => {
+      const rows = match.replace(/<tr class="ai-table-sep"><\/tr>\n?/g, '');
+      return `<table class="ai-table">${rows}</table>`;
+    })
+    // Checkboxes
+    .replace(/^- \[ \] (.+)$/gm, '<li class="ai-check ai-unchecked"><span class="ai-checkbox">☐</span> $1</li>')
+    .replace(/^- \[x\] (.+)$/gmi, '<li class="ai-check ai-checked"><span class="ai-checkbox">☑</span> $1</li>')
+    // Listas
+    .replace(/^- \*\*(.+?)\*\*: (.+)$/gm, '<li><strong>$1</strong>: $2</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    // Envolver <li> consecutivos en <ul>
+    .replace(/(<li[\s\S]*?<\/li>(\n<li[\s\S]*?<\/li>)*)/g, '<ul class="ai-list">$1</ul>')
+    // Bold e italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Separador horizontal
+    .replace(/^---$/gm, '<hr class="ai-hr">')
+    // Cursiva para líneas que empiezan con *
+    .replace(/^\*(.+)\*$/gm, '<p class="ai-footnote"><em>$1</em></p>')
+    // Párrafos: líneas que no son tags HTML
+    .replace(/^(?!<[a-z]).+$/gm, (line) => line.trim() ? `<p>${line}</p>` : '')
+    // Limpiar líneas vacías múltiples
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 // Función para renderizar el resultado del resumen IA
 function renderAISummaryResult(body, sessionId, summary) {
   body.innerHTML = `
@@ -569,7 +655,7 @@ function renderAISummaryResult(body, sessionId, summary) {
         <div class="ai-model-badge" title="Proveedor: OpenRouter — enruta al mejor modelo gratuito disponible. Actualizado el ${AI_MODEL_UPDATED}">
           <i class="fas fa-microchip"></i> ${AI_PROVIDER} / auto
         </div>
-        <div class="ai-text">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
+        <div class="ai-text">${renderMarkdown(summary)}</div>
       </div>
       <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="copyAISummary()">
