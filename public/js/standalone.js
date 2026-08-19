@@ -491,7 +491,7 @@ function addTranscriptEntry(text) {
 }
 
 // ===== Sesiones =====
-function startSession() {
+async function startSession() {
   if (App.privacyMode) {
     showToast('🔒 Modo privacidad activado. Desactívalo para iniciar sesión.', 'error');
     return;
@@ -524,13 +524,29 @@ function startSession() {
   // Mostrar indicador de grabación
   showRecordingIndicator();
   
-  // Iniciar capturas si la pantalla ya está compartida
-  if (App.screenStream) {
+  // Iniciar captura de pantalla automáticamente
+  if (!App.screenStream) {
+    try {
+      await startScreenCapture();
+    } catch (e) {
+      console.error('Error iniciando captura de pantalla:', e);
+    }
+  } else {
     startScreenshotInterval();
   }
   
-  showToast('✅ Sesión iniciada');
+  // Iniciar audio y transcripción automáticamente
+  if (!App.audioStream) {
+    try {
+      await startAudioCapture();
+    } catch (e) {
+      console.error('Error iniciando audio:', e);
+    }
+  }
+  
+  showToast('✅ Sesión iniciada: captura y transcripción activas');
 }
+
 
 function endSession() {
   if (!App.currentSession) return;
@@ -559,8 +575,19 @@ function endSession() {
   clearInterval(App.screenshotInterval);
   App.screenshotInterval = null;
   
+  // Detener captura de pantalla automáticamente
+  if (App.screenStream) {
+    stopScreenCapture();
+  }
+  
+  // Detener audio y transcripción automáticamente
+  if (App.audioStream) {
+    stopAudioCapture();
+  }
+  
   showToast(`✅ Sesión terminada. Duración: ${formatDuration(duration)}`);
 }
+
 
 function showRecordingIndicator() {
   const existing = document.querySelector('.recording-indicator');
