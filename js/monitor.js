@@ -9,12 +9,16 @@ function getGroqApiKey() {
 }
 
 function saveGroqApiKey() {
-  const key = document.getElementById('groqApiKeyInput').value.trim();
+  const input = document.getElementById('groqApiKeyInput');
+  if (!input) return;
+  const key = input.value.trim();
   if (!key) { showToast('⚠️ Ingresa una API key primero', 'error'); return; }
-  if (!key.startsWith('gsk_')) { showToast('⚠️ La key de Groq debe comenzar con gsk_', 'error'); return; }
+  // Groq keys pueden empezar con gsk_ o grok_ según la versión
+  if (key.length < 20) { showToast('⚠️ La key parece demasiado corta', 'error'); return; }
   localStorage.setItem('groq_api_key', key);
   updateGroqKeyStatus();
-  showToast('✅ API key de Groq guardada');
+  showToast('✅ API key de Groq guardada. Puedes verificarla en la consola: localStorage.getItem("groq_api_key")');
+  console.log('[Groq] Key guardada:', key.slice(0, 8) + '...' + key.slice(-4));
 }
 
 function clearGroqApiKey() {
@@ -393,7 +397,7 @@ function _runSystemChunk() {
   const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
     .find(m => MediaRecorder.isTypeSupported(m)) || '';
 
-  console.log('[Sistema] Chunk iniciado. MIME:', mimeType || 'default', '| Groq:', apiKey ? 'sí' : 'NO');
+  console.log('[Sistema] Chunk iniciado. MIME:', mimeType || 'default', '| Groq:', apiKey ? apiKey.slice(0,8)+'...' : 'NO — ve a Mis Datos y guarda la key');
 
   try {
     _systemMediaRecorder = new MediaRecorder(App.systemAudioStream, mimeType ? { mimeType } : {});
