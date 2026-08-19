@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Reports Module v3.0.0
+   Productivity Monitor - Reports Module v3.0.2
    Reportes, exportación y análisis con IA
    ============================================================ */
 
@@ -292,6 +292,10 @@ function exportJSON() {
 const AI_CHUNK_SIZE = 4000;
 const AI_MAX_CHUNKS = 20;
 
+// Modelo activo y registro de cambios
+const GROQ_MODEL = 'llama3-8b-8192';
+const GROQ_MODEL_UPDATED = '2026-08-19'; // Actualizado desde llama-3.1-8b-instant (deprecado por Groq)
+
 // Llama a Groq para generar texto
 async function callGroqChat(messages) {
   const apiKey = (typeof getGroqApiKey === 'function') ? getGroqApiKey() : localStorage.getItem('groq_api_key') || '';
@@ -304,7 +308,7 @@ async function callGroqChat(messages) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: GROQ_MODEL,
       messages,
       temperature: 0.3,
       max_tokens: 1024
@@ -553,6 +557,9 @@ function renderAISummaryResult(body, sessionId, summary) {
     <div class="ai-summary">
       <div class="ai-result">
         <h4><i class="fas fa-robot"></i> Resumen generado</h4>
+        <div class="ai-model-badge" title="Modelo actualizado el ${GROQ_MODEL_UPDATED}">
+          <i class="fas fa-microchip"></i> ${GROQ_MODEL}
+        </div>
         <div class="ai-text">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
       </div>
       <div class="edit-actions" style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
