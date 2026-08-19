@@ -42,7 +42,7 @@
 
     <details style="margin-top:16px">
       <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">
-        <i class="fas fa-question-circle"></i> ¿Cómo obtener una API key gratis?
+        <i class="fas fa-question-circle"></i> ¿Cómo obtener una API key de Groq gratis?
       </summary>
       <ol style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary);padding-left:20px;line-height:1.8">
         <li>Ve a <a href="https://console.groq.com" target="_blank" style="color:var(--primary)">console.groq.com</a></li>
@@ -50,6 +50,51 @@
         <li>En el menú lateral, haz clic en <strong>API Keys</strong></li>
         <li>Clic en <strong>Create API Key</strong></li>
         <li>Copia la key (empieza con <code>gsk_</code>) y pégala aquí</li>
+      </ol>
+    </details>
+  </div>
+
+  <!-- Configuración de Resumen IA (OpenRouter) -->
+  <div class="card">
+    <h3><i class="fas fa-robot"></i> Resumen IA</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Configura tu API key de <strong>OpenRouter</strong> para habilitar el resumen automático de sesiones con IA.
+      OpenRouter es <strong>gratuito</strong> — sin tarjeta de crédito, y siempre usa el mejor modelo disponible.
+    </p>
+
+    <div class="form-group">
+      <label for="openrouterApiKeyInput"><i class="fas fa-key"></i> OpenRouter API Key</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="password" id="openrouterApiKeyInput" placeholder="sk-or-..." 
+               style="flex:1;font-family:monospace;font-size:0.85rem">
+        <button class="btn btn-secondary btn-sm" onclick="toggleOpenRouterKeyVisibility()" id="btnToggleOpenRouterKey">
+          <i class="fas fa-eye" id="openrouterKeyEyeIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveOpenRouterApiKey()">
+        <i class="fas fa-save"></i> Guardar API Key
+      </button>
+      <button class="btn btn-secondary" onclick="clearOpenRouterApiKey()">
+        <i class="fas fa-trash"></i> Eliminar
+      </button>
+    </div>
+
+    <div id="openrouterKeyStatus" style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary)">
+      <i class="fas fa-info-circle"></i> Sin API key — el Resumen IA no estará disponible.
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">
+        <i class="fas fa-question-circle"></i> ¿Cómo obtener una API key de OpenRouter gratis?
+      </summary>
+      <ol style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary);padding-left:20px;line-height:1.8">
+        <li>Ve a <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--primary)">openrouter.ai/keys</a></li>
+        <li>Crea una cuenta gratuita (puedes usar Google)</li>
+        <li>Clic en <strong>Create Key</strong></li>
+        <li>Copia la key (empieza con <code>sk-or-</code>) y pégala aquí</li>
       </ol>
     </details>
   </div>

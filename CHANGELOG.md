@@ -5,6 +5,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [3.1.1] - 2026-08-19
+
+### Added
+- Campo dedicado para OpenRouter API Key en "Mis Datos" (sección Resumen IA)
+- Funciones `saveOpenRouterApiKey`, `clearOpenRouterApiKey`, `toggleOpenRouterKeyVisibility`, `updateOpenRouterKeyStatus` en `monitor.js`
+- Instrucciones en la UI para obtener la key en openrouter.ai/keys
+
+### Fixed
+- `reports.js` ahora lee correctamente desde `openrouter_api_key` en localStorage
+
+---
+
 ## [3.1.0] - 2026-08-19
 
 ### Changed

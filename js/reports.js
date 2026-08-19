@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Reports Module v3.1.0
+   Productivity Monitor - Reports Module v3.1.1
    Reportes, exportación y análisis con IA
    ============================================================ */
 
@@ -303,13 +303,10 @@ const AI_MODEL_UPDATED = '2026-08-19'; // Migrado desde Groq (modelos deprecados
 // Llama a OpenRouter para generar texto
 // Requiere una API key de OpenRouter (gratuita, sin tarjeta): https://openrouter.ai/keys
 async function callGroqChat(messages) {
-  // Compatible con la key existente: si hay groq_api_key la usamos, si no buscamos openrouter_api_key
-  const apiKey = (typeof getGroqApiKey === 'function') ? getGroqApiKey()
-    : localStorage.getItem('openrouter_api_key')
-    || localStorage.getItem('groq_api_key')
-    || '';
+  const apiKey = (typeof getOpenRouterApiKey === 'function') ? getOpenRouterApiKey()
+    : localStorage.getItem('openrouter_api_key') || '';
 
-  if (!apiKey) throw new Error('No hay API key configurada. Ve a Mis Datos y agrega tu key de OpenRouter (gratis en openrouter.ai/keys).');
+  if (!apiKey) throw new Error('No hay API key de OpenRouter configurada. Ve a Mis Datos → Resumen IA y agrega tu key (gratis en openrouter.ai/keys).');
 
   const res = await fetch(AI_API_URL, {
     method: 'POST',

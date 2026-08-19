@@ -65,6 +65,65 @@ function initGroqKeyUI() {
   const input = document.getElementById('groqApiKeyInput');
   if (input && key) input.value = key;
   updateGroqKeyStatus();
+  initOpenRouterKeyUI();
+}
+
+// ===== OpenRouter API Key helpers (para Resumen IA) =====
+function getOpenRouterApiKey() {
+  return localStorage.getItem('openrouter_api_key') || '';
+}
+
+function saveOpenRouterApiKey() {
+  const input = document.getElementById('openrouterApiKeyInput');
+  if (!input) return;
+  const key = input.value.trim();
+  if (!key) { showToast('⚠️ Ingresa una API key primero', 'error'); return; }
+  if (key.length < 20) { showToast('⚠️ La key parece demasiado corta', 'error'); return; }
+  localStorage.setItem('openrouter_api_key', key);
+  updateOpenRouterKeyStatus();
+  showToast('✅ API key de OpenRouter guardada');
+  console.log('[OpenRouter] Key guardada:', key.slice(0, 8) + '...' + key.slice(-4));
+}
+
+function clearOpenRouterApiKey() {
+  localStorage.removeItem('openrouter_api_key');
+  const input = document.getElementById('openrouterApiKeyInput');
+  if (input) input.value = '';
+  updateOpenRouterKeyStatus();
+  showToast('🗑️ API key de OpenRouter eliminada');
+}
+
+function toggleOpenRouterKeyVisibility() {
+  const input = document.getElementById('openrouterApiKeyInput');
+  const icon = document.getElementById('openrouterKeyEyeIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+
+function updateOpenRouterKeyStatus() {
+  const key = getOpenRouterApiKey();
+  const statusEl = document.getElementById('openrouterKeyStatus');
+  const input = document.getElementById('openrouterApiKeyInput');
+  if (!statusEl) return;
+  if (key) {
+    if (input && !input.value) input.value = key;
+    statusEl.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> API key configurada — el Resumen IA está disponible.';
+  } else {
+    statusEl.innerHTML = '<i class="fas fa-info-circle"></i> Sin API key — el Resumen IA no estará disponible.';
+  }
+}
+
+function initOpenRouterKeyUI() {
+  const key = getOpenRouterApiKey();
+  const input = document.getElementById('openrouterApiKeyInput');
+  if (input && key) input.value = key;
+  updateOpenRouterKeyStatus();
 }
 
 // ===== Variables de módulo =====
