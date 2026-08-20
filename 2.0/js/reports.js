@@ -289,7 +289,7 @@ function exportJSON() {
 }
 
 // ===== Resumen IA =====
-const AI_CHUNK_SIZE = 4000;
+const AI_CHUNK_SIZE = 8000;  // aumentado — OpenRouter soporta contextos grandes
 const AI_MAX_CHUNKS = 20;
 
 // Proveedor IA: OpenRouter — un endpoint estable con 20+ modelos gratuitos
@@ -332,6 +332,50 @@ async function callGroqChat(messages) {
 
   const data = await res.json();
   return data.choices?.[0]?.message?.content || 'No se pudo generar el resumen.';
+}
+
+// Elimina entradas de ruido antes de enviar a la IA:
+//   - Textos muy cortos sin contenido real (< 3 chars)
+//   - Palabras de relleno conocidas ("Gracias.", "Ok.", etc.) que el micrófono
+//     capta del fondo y no aportan información
+//   - Repeticiones consecutivas exactas del mismo texto
+// Conserva SIEMPRE las entradas del sistema [🔊] sin filtrar.
+function cleanTranscriptsForAI(transcripts) {
+  const NOISE_PATTERNS = [
+    /^gracias\.?$/i,
+    /^ok\.?$/i,
+    /^sí\.?$/i,
+    /^no\.?$/i,
+    /^\.{1,3}$/,
+    /^¿?qué\??\.?$/i,
+    /^claro\.?$/i,
+    /^perfecto\.?$/i,
+    /^entendido\.?$/i,
+    /^de acuerdo\.?$/i,
+  ];
+
+  let lastText = null;
+  return transcripts.filter(t => {
+    const text = (t.text || '').trim();
+
+    // Descartar vacíos o demasiado cortos
+    if (text.length < 3) return false;
+
+    // Las entradas del sistema [🔊] siempre pasan sin filtro
+    if (text.startsWith('[🔊]')) {
+      lastText = text;
+      return true;
+    }
+
+    // Descartar ruido de fondo conocido
+    if (NOISE_PATTERNS.some(p => p.test(text))) return false;
+
+    // Descartar repetición consecutiva exacta
+    if (text === lastText) return false;
+
+    lastText = text;
+    return true;
+  });
 }
 
 // Función para dividir la transcripción en fragmentos
@@ -384,8 +428,11 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
   const screenshots = session.screenshots || [];
   const sessionDate = session.startedAt ? formatDateTime(session.startedAt) : 'Desconocida';
 
-  // Dividir la transcripción completa en fragmentos
-  const chunks = splitTranscriptIntoChunks(transcripts, AI_CHUNK_SIZE);
+  // Limpiar ruido antes de chunking — filtra "Gracias." ×50, repeticiones, etc.
+  const cleanedTranscripts = cleanTranscriptsForAI(transcripts);
+
+  // Dividir la transcripción limpia en fragmentos
+  const chunks = splitTranscriptIntoChunks(cleanedTranscripts, AI_CHUNK_SIZE);
   const chunksToProcess = chunks.slice(0, AI_MAX_CHUNKS);
   const totalChunks = chunks.length;
   const isTruncated = totalChunks > AI_MAX_CHUNKS;
@@ -458,7 +505,7 @@ Tipo: ${getTypeLabel(session.type)}
 Fecha: ${sessionDate}
 Duración: ${formatDuration(session.duration || 0)}
 Capturas de pantalla: ${screenshots.length}
-Líneas de transcripción: ${transcripts.length}
+Líneas de transcripción: ${cleanedTranscripts.length} (de ${transcripts.length} totales, ruido filtrado)
 
 Transcripción completa:
 ${transcriptText || 'Sin transcripciones disponibles'}`
