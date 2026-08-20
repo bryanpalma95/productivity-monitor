@@ -1,4 +1,26 @@
-﻿## [2.0.7] - 2026-08-20
+﻿## [2.0.8] - 2026-08-20
+
+### Added
+- **Firebase Storage para capturas** — cuando el usuario esta logueado, las capturas
+  se suben a Firebase Storage (screenshots/{uid}/{sessionId}/{id}.jpg) en vez de
+  guardarse como base64 en localStorage. El localStorage vuelve a ser liviano.
+- **Fallback automatico** — si no hay login o el upload falla, las capturas se guardan
+  en localStorage como antes. Sin configuracion adicional para el usuario.
+- `storage.rules` — reglas de seguridad para Firebase Storage: cada usuario solo puede
+  leer/escribir sus propias capturas. Aplicar en Firebase Console → Storage → Reglas.
+
+### Fixed
+- `pushToCloud` ya no sube dataUrl base64 a Firestore (evitaba el limite de 1 MB por doc).
+  Ahora sube solo metadatos + storageUrl. Sesiones con muchas capturas ya no fallan al sync.
+- Grid, lightbox y export PDF usan `dataUrl || storageUrl` para mostrar imagenes correctamente
+  independientemente de donde esten almacenadas.
+- ZIP export: capturas locales como JPEG, capturas en Storage como .url.txt con URL de descarga.
+
+### Changed
+- `deleteSession` y `_deleteScreenshotFromLightbox` eliminan capturas de Firebase Storage
+  en background al borrar una sesion o captura individual.
+- `initFirebase` inicializa `firebase.storage()` junto a auth y firestore.
+## [2.0.7] - 2026-08-20
 
 ### Added
 - Eliminar captura individual desde el lightbox: boton "Eliminar" rojo junto a "Descargar".
@@ -115,6 +137,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 

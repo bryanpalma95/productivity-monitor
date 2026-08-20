@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// ============================================================
+// Productivity Monitor - Firebase Storage Security Rules
+// ============================================================
+// IMPORTANTE: Aplicar en Firebase Console → Storage → Reglas
+//
+// Estructura de paths:
+//   screenshots/{uid}/{sessionId}/{screenshotId}.jpg
+//
+// Garantiza que cada usuario solo puede leer/escribir
+// sus propias capturas.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Capturas de pantalla por usuario
+    match /screenshots/{userId}/{sessionId}/{screenshotId} {
+      // Solo el dueño puede leer, escribir y eliminar
+      allow read, write, delete: if request.auth != null
+                                  && request.auth.uid == userId;
+    }
+
+    // Denegar todo lo demás
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

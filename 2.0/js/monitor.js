@@ -339,20 +339,39 @@ async function captureScreenshot() {
   const dataUrl = canvas.toDataURL('image/png');
   const compressed = await Storage.compressScreenshot(dataUrl);
 
+  const screenshotId = generateId();
+  const sessionId = App.currentSession.id;
+
   const screenshot = {
-    id: generateId(),
-    timestamp: Date.now(),
-    dataUrl: compressed
+    id: screenshotId,
+    timestamp: Date.now()
   };
 
-  const session = Storage.getSession(App.currentSession.id);
+  // Si el usuario está logueado, subir a Firebase Storage
+  // y guardar solo la URL (no el base64) para liberar localStorage
+  if (typeof isLoggedIn === 'function' && isLoggedIn() &&
+      typeof uploadScreenshot === 'function') {
+    const storageUrl = await uploadScreenshot(sessionId, screenshotId, compressed);
+    if (storageUrl) {
+      screenshot.storageUrl = storageUrl;
+      // No guardar dataUrl — la imagen vive en Firebase Storage
+    } else {
+      // Upload falló → fallback a localStorage
+      screenshot.dataUrl = compressed;
+    }
+  } else {
+    // Sin cuenta → guardar localmente como siempre
+    screenshot.dataUrl = compressed;
+  }
+
+  const session = Storage.getSession(sessionId);
   if (session) {
     const screenshots = session.screenshots || [];
     if (screenshots.length >= Storage.MAX_SCREENSHOTS_PER_SESSION) {
       screenshots.shift();
     }
     screenshots.push(screenshot);
-    Storage.updateSession(session.id, { screenshots });
+    Storage.updateSession(sessionId, { screenshots });
   }
 }
 

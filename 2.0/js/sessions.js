@@ -376,11 +376,20 @@ function deleteSession(sessionId) {
   const approxKB = Math.round((JSON.stringify(session).length * 2) / 1024);
   const sizeStr = approxKB >= 1024 ? (approxKB / 1024).toFixed(1) + ' MB' : approxKB + ' KB';
 
+  const storageCount = screenshots.filter(s => s.storageUrl).length;
+  const storageNote = storageCount > 0
+    ? `\n${storageCount} capturas se eliminarán también de Firebase Storage.`
+    : '';
+
   const msg = `¿Eliminar "${session.title}"?\n\n` +
     `Se liberarán aprox. ${sizeStr} ` +
-    `(${screenshots.length} capturas, ${transcripts.length} transcripciones).`;
+    `(${screenshots.length} capturas, ${transcripts.length} transcripciones).${storageNote}`;
 
   if (confirm(msg)) {
+    // Eliminar capturas de Firebase Storage en background (no bloquear la UI)
+    if (typeof deleteSessionScreenshotsFromStorage === 'function') {
+      deleteSessionScreenshotsFromStorage(sessionId, screenshots);
+    }
     Storage.deleteSession(sessionId);
     closeModal();
     loadSessions();
@@ -533,21 +542,24 @@ function _renderScreenshotPage(screenshots, page, sessionId) {
   const start = safePage * SCREENSHOTS_PER_PAGE;
   const pageItems = screenshots.slice(start, start + SCREENSHOTS_PER_PAGE);
 
-  const grid = pageItems.map(s => `
+  const grid = pageItems.map(s => {
+    const imgSrc = s.dataUrl || s.storageUrl || '';
+    const dlHref = s.dataUrl || s.storageUrl || '';
+    return `
     <div class="screenshot-thumb">
-      <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}"
+      <img src="${imgSrc}" alt="Captura ${formatTime(s.timestamp)}"
            onclick="_openLightbox('${s.id}', '${sessionId}')"
            title="Clic para ver en pantalla completa" style="cursor:zoom-in">
       <div class="screenshot-thumb-footer">
         <span class="screenshot-time">${formatTime(s.timestamp)}</span>
-        <a class="btn-screenshot-dl" href="${s.dataUrl}"
+        <a class="btn-screenshot-dl" href="${dlHref}"
            download="captura-${formatTime(s.timestamp).replace(/:/g,'-')}.jpg"
            onclick="event.stopPropagation()" title="Descargar">
           <i class="fas fa-download"></i>
         </a>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
 
   const pagination = totalPages > 1 ? `
     <div class="screenshots-pagination">
@@ -605,11 +617,11 @@ function _openLightbox(screenshotId, sessionId) {
         <i class="fas fa-chevron-left"></i>
       </button>
       <div class="lb-img-wrap">
-        <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}" class="lb-img">
+        <img src="${s.dataUrl || s.storageUrl || ''}" alt="Captura ${formatTime(s.timestamp)}" class="lb-img">
         <div class="lb-caption">
           <span>${formatDateTime(s.timestamp)}</span>
           <span class="lb-counter">${idx + 1} / ${total}</span>
-          <a href="${s.dataUrl}" download="captura-${formatTime(s.timestamp).replace(/:/g,'-')}.jpg"
+          <a href="${s.dataUrl || s.storageUrl || ''}" download="captura-${formatTime(s.timestamp).replace(/:/g,'-')}.jpg"
              class="lb-dl" title="Descargar" onclick="_lbMarkDownloaded('${s.id}')">
             <i class="fas fa-download"></i> Descargar
           </a>
@@ -660,6 +672,13 @@ function _deleteScreenshotFromLightbox(screenshotId, sessionId, currentIdx, tota
 
   const session = Storage.getSession(sessionId);
   if (!session) return;
+
+  const toDelete = (session.screenshots || []).find(s => s.id === screenshotId);
+
+  // Eliminar de Firebase Storage si corresponde (en background)
+  if (toDelete?.storageUrl && typeof deleteScreenshotFromStorage === 'function') {
+    deleteScreenshotFromStorage(sessionId, screenshotId);
+  }
 
   const screenshots = (session.screenshots || []).filter(s => s.id !== screenshotId);
   Storage.updateSession(sessionId, { screenshots });
@@ -761,10 +780,17 @@ async function exportScreenshotsZip(sessionId) {
   const folder = zip.folder(folderName);
 
   screenshots.forEach((s, i) => {
-    const base64 = s.dataUrl.split(',')[1];
-    if (!base64) return;
     const time = formatDateTime(s.timestamp).replace(/[/:, ]/g, '-');
-    folder.file(`captura-${String(i + 1).padStart(3, '0')}-${time}.jpg`, base64, { base64: true });
+    const filename = `captura-${String(i + 1).padStart(3, '0')}-${time}.jpg`;
+
+    if (s.dataUrl) {
+      // Captura local: base64 directo
+      const base64 = s.dataUrl.split(',')[1];
+      if (base64) folder.file(filename, base64, { base64: true });
+    } else if (s.storageUrl) {
+      // Captura en Firebase Storage: incluir URL como referencia en el ZIP
+      folder.file(filename.replace('.jpg', '.url.txt'), s.storageUrl);
+    }
   });
 
   try {
