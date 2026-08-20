@@ -1,9 +1,9 @@
-/* ============================================================
+﻿/* ============================================================
    Productivity Monitor 2.0 - Core Module v2.0.0
    Estado global, almacenamiento y utilidades
    ============================================================ */
 
-const APP_VERSION = '2.0.5';
+const APP_VERSION = '2.0.6';
 
 // ===== Estado Global =====
 const App = {
@@ -46,7 +46,7 @@ const Storage = {
       localStorage.setItem(this.KEY, JSON.stringify(data));
     } catch (e) {
       console.error('Error guardando datos:', e);
-      showToast('⚠️ Error al guardar datos. El almacenamiento está lleno.', 'error');
+      showToast('âš ï¸ Error al guardar datos. El almacenamiento estÃ¡ lleno.', 'error');
     }
   },
 
@@ -93,7 +93,7 @@ const Storage = {
     this.syncToCloud();
   },
 
-  // Sincronizar con la nube si el usuario está autenticado
+  // Sincronizar con la nube si el usuario estÃ¡ autenticado
   syncToCloud() {
     if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof pushToCloud === 'function') {
       pushToCloud();
@@ -101,7 +101,7 @@ const Storage = {
   },
 
 
-  // Métricas de almacenamiento
+  // MÃ©tricas de almacenamiento
   getUsage() {
     let total = 0;
     for (let i = 0; i < localStorage.length; i++) {
@@ -122,7 +122,7 @@ const Storage = {
     return Math.min(100, Math.round((usage / quota) * 100));
   },
 
-  // Compresión de capturas
+  // CompresiÃ³n de capturas
   compressScreenshot(dataUrl, maxWidth = 1280) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -199,7 +199,7 @@ function showSystemNotification(title, body) {
   }
 }
 
-// ===== Navegación =====
+// ===== NavegaciÃ³n =====
 function switchView(viewName) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -250,7 +250,7 @@ function closeSidebar() {
 function getTypeLabel(type) {
   const labels = {
     work: 'Trabajo',
-    meeting: 'Reunión',
+    meeting: 'ReuniÃ³n',
     individual: 'Individual',
     study: 'Estudio'
   };

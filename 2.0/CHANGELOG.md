@@ -1,4 +1,16 @@
-﻿## [2.0.5] - 2026-08-20
+﻿## [2.0.6] - 2026-08-20
+
+### Fixed
+- Frame differencing ahora analiza solo la zona central (70% ancho, 80% alto) del frame.
+  Ignora paneles laterales de participantes en Teams/Meet que generaban capturas redundantes
+  al cambiar avatares o highlights sin que la diapositiva cambiara.
+
+### Changed
+- deleteSession: muestra espacio aproximado a liberar (KB/MB, capturas, transcripciones)
+  antes de confirmar. Actualiza el indicador de storage inmediatamente al eliminar.
+- updateStorageIndicator: umbrales en 50/70/90%, formato "usado/total MB",
+  desglose de las 3 sesiones mas pesadas con tamano y cantidad de capturas.
+## [2.0.5] - 2026-08-20
 
 ### Changed
 - **Calidad de capturas mejorada** — captura inicial ahora en PNG (sin perdida) antes de comprimir.
@@ -94,6 +106,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 

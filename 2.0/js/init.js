@@ -162,13 +162,42 @@ function updateStorageIndicator() {
   const indicator = document.getElementById('storageIndicator');
   if (!indicator) return;
 
-  const percent = Storage.getUsagePercent();
-  const usageMB = (Storage.getUsage() / (1024 * 1024)).toFixed(2);
+  const usageBytes = Storage.getUsage();
+  const quotaBytes = Storage.getQuota();
+  const percent = Math.min(100, Math.round((usageBytes / quotaBytes) * 100));
+  const usageMB = (usageBytes / (1024 * 1024)).toFixed(2);
+  const quotaMB = (quotaBytes / (1024 * 1024)).toFixed(0);
 
-  let color = '#4ade80';
-  let label = 'Espacio disponible';
-  if (percent > 80) { color = '#f87171'; label = '⚠️ Espacio casi lleno'; }
-  else if (percent > 60) { color = '#fbbf24'; label = 'Espacio moderado'; }
+  let color, label, labelClass;
+  if (percent >= 90) {
+    color = '#ef4444'; label = '🔴 Crítico — elimina sesiones antiguas'; labelClass = 'storage-critical';
+  } else if (percent >= 70) {
+    color = '#f87171'; label = '⚠️ Casi lleno'; labelClass = 'storage-warning';
+  } else if (percent >= 50) {
+    color = '#fbbf24'; label = '⚠️ Espacio moderado'; labelClass = 'storage-moderate';
+  } else {
+    color = '#4ade80'; label = '✓ Espacio disponible'; labelClass = '';
+  }
+
+  // Desglose por sesión (top 3 más pesadas)
+  const sessions = Storage.getSessions();
+  const sessionSizes = sessions.map(s => ({
+    title: s.title,
+    kb: Math.round((JSON.stringify(s).length * 2) / 1024),
+    screenshots: (s.screenshots || []).length
+  })).sort((a, b) => b.kb - a.kb).slice(0, 3);
+
+  const topSessions = sessionSizes.length > 0 ? `
+    <div class="storage-breakdown">
+      <span class="storage-breakdown-title">Sesiones más pesadas:</span>
+      ${sessionSizes.map(s => `
+        <div class="storage-breakdown-row">
+          <span class="storage-breakdown-name">${escapeHtml(s.title.slice(0, 25))}</span>
+          <span class="storage-breakdown-size">${s.kb >= 1024 ? (s.kb/1024).toFixed(1)+'MB' : s.kb+'KB'} · ${s.screenshots} capturas</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
 
   indicator.innerHTML = `
     <div class="storage-indicator">
@@ -176,12 +205,12 @@ function updateStorageIndicator() {
         <div class="storage-fill" style="width:${percent}%;background:${color}"></div>
       </div>
       <div class="storage-info-row">
-        <span class="storage-label">${usageMB} MB usados (${percent}%)</span>
-        <span>${label}</span>
+        <span class="storage-label ${labelClass}">${usageMB} / ${quotaMB} MB (${percent}%)</span>
+        <span class="${labelClass}">${label}</span>
       </div>
+      ${topSessions}
     </div>
   `;
-
 }
 
 // ===== PWA / Service Worker =====

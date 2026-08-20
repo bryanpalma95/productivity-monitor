@@ -1608,3 +1608,47 @@ input:checked + .slider:before {
 
 .lb-nav:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
 .lb-nav:disabled { opacity: 0.25; cursor: default; }
+
+/* ===== Storage indicator mejorado ===== */
+.storage-critical { color: #ef4444 !important; }
+.storage-warning  { color: #f87171 !important; }
+.storage-moderate { color: #fbbf24 !important; }
+
+.storage-breakdown {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #2a2a2a);
+  font-size: 0.72rem;
+}
+
+.storage-breakdown-title {
+  display: block;
+  color: var(--muted, #888);
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.storage-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--text, #f0f0f0);
+}
+
+.storage-breakdown-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted, #aaa);
+}
+
+.storage-breakdown-size {
+  flex-shrink: 0;
+  color: var(--muted, #888);
+  font-size: 0.68rem;
+}

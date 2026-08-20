@@ -368,11 +368,25 @@ function filterSessions() {
 }
 
 function deleteSession(sessionId) {
-  if (confirm('¿Seguro que quieres eliminar esta sesión?')) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const screenshots = session.screenshots || [];
+  const transcripts = session.transcripts || [];
+  const approxKB = Math.round((JSON.stringify(session).length * 2) / 1024);
+  const sizeStr = approxKB >= 1024 ? (approxKB / 1024).toFixed(1) + ' MB' : approxKB + ' KB';
+
+  const msg = `¿Eliminar "${session.title}"?\n\n` +
+    `Se liberarán aprox. ${sizeStr} ` +
+    `(${screenshots.length} capturas, ${transcripts.length} transcripciones).`;
+
+  if (confirm(msg)) {
     Storage.deleteSession(sessionId);
+    closeModal();
     loadSessions();
     loadDashboard();
-    showToast('🗑️ Sesión eliminada');
+    updateStorageIndicator();
+    showToast(`🗑️ Sesión eliminada — ${sizeStr} liberados`);
   }
 }
 

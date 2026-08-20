@@ -189,14 +189,31 @@ function stopDiffAnalysis() {
   _prevFrameData = null;
 }
 
-// Compara canal R de dos ImageData; devuelve ratio de píxeles que difieren > 25 unidades
+// Compara solo la zona central (70% ancho, 80% alto) del frame para ignorar
+// paneles laterales de participantes en Teams/Meet que cambian constantemente.
 function _calculateFrameDiff(prev, curr) {
+  const w = DIFF_CANVAS_WIDTH;
+  const totalPixels = prev.length / 4;
+  const h = Math.round(totalPixels / w);
+
+  // Zona central: 15% margen horizontal, 10% margen vertical
+  const xStart = Math.round(w * 0.15);
+  const xEnd   = Math.round(w * 0.85);
+  const yStart = Math.round(h * 0.10);
+  const yEnd   = Math.round(h * 0.90);
+
   let diffPixels = 0;
-  const total = prev.length / 4;
-  for (let i = 0; i < prev.length; i += 4) {
-    if (Math.abs(prev[i] - curr[i]) > 25) diffPixels++;
+  let analyzed = 0;
+
+  for (let y = yStart; y < yEnd; y++) {
+    for (let x = xStart; x < xEnd; x++) {
+      const i = (y * w + x) * 4;
+      if (Math.abs(prev[i] - curr[i]) > 25) diffPixels++;
+      analyzed++;
+    }
   }
-  return diffPixels / total;
+
+  return analyzed > 0 ? diffPixels / analyzed : 0;
 }
 
 // ===== Captura de Pantalla =====
