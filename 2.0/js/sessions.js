@@ -1,7 +1,12 @@
 /* ============================================================
-   Productivity Monitor - Sessions Module v3.0.0
-   Sesiones, edición, recuperación y detalles
+   Productivity Monitor 2.0 - Sessions Module
+   Sesiones, edición, recuperación, detalles y paginación
    ============================================================ */
+
+// ===== Paginación =====
+const SESSIONS_PER_PAGE = 10;
+let _sessionsCurrentPage = 0;   // índice de página actual (0-based)
+let _sessionsFiltered = null;   // cache de la lista filtrada activa
 
 // ===== Cronómetro de sesión =====
 let _sessionTimerInterval = null;
@@ -250,21 +255,20 @@ function hideRecordingIndicator() {
   if (indicator) indicator.remove();
 }
 
-// ===== Lista de Sesiones =====
-function loadSessions() {
-  const sessions = Storage.getSessions();
-  const container = document.getElementById('sessions-list');
+// ===== Helpers de renderizado =====
 
-  if (sessions.length === 0) {
-    container.innerHTML = '<p class="empty-state">No hay sesiones registradas. Inicia el monitoreo para comenzar.</p>';
-    return;
-  }
+// Construye el HTML de una tarjeta de sesión en la lista
+function _sessionCardHTML(s) {
+  const aiBadge = s.aiSummary
+    ? `<span class="session-ai-badge" title="Resumen IA generado"><i class="fas fa-robot"></i> IA</span>`
+    : '';
 
-  container.innerHTML = sessions.map(s => `
+  return `
     <div class="session-item" onclick="viewSessionDetails('${s.id}')">
       <div class="session-item-header">
         <span class="session-type-badge ${s.type}">${getTypeLabel(s.type)}</span>
         <span class="session-status ${s.status}">${s.status === 'active' ? '● Activa' : '✓ Terminada'}</span>
+        ${aiBadge}
         <span class="session-date">${formatDateTime(s.startedAt)}</span>
       </div>
       <div class="session-item-title">${escapeHtml(s.title)}</div>
@@ -285,7 +289,54 @@ function loadSessions() {
         </button>
       </div>
     </div>
-  `).join('');
+  `;
+}
+
+// Renderiza una página de la lista con controles de paginación
+function _renderSessionsPage(sessions, page) {
+  const container = document.getElementById('sessions-list');
+  if (!container) return;
+
+  if (sessions.length === 0) {
+    container.innerHTML = '<p class="empty-state">No se encontraron sesiones.</p>';
+    return;
+  }
+
+  const totalPages = Math.ceil(sessions.length / SESSIONS_PER_PAGE);
+  const safePage = Math.max(0, Math.min(page, totalPages - 1));
+  _sessionsCurrentPage = safePage;
+
+  const start = safePage * SESSIONS_PER_PAGE;
+  const pageItems = sessions.slice(start, start + SESSIONS_PER_PAGE);
+
+  const pagination = totalPages > 1 ? `
+    <div class="sessions-pagination">
+      <button class="btn btn-sm btn-secondary" onclick="_goToSessionPage(${safePage - 1})" ${safePage === 0 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-left"></i> Anterior
+      </button>
+      <span class="pagination-info">Página ${safePage + 1} de ${totalPages} (${sessions.length} sesiones)</span>
+      <button class="btn btn-sm btn-secondary" onclick="_goToSessionPage(${safePage + 1})" ${safePage >= totalPages - 1 ? 'disabled' : ''}>
+        Siguiente <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  ` : `<div class="sessions-pagination-info">${sessions.length} sesión${sessions.length !== 1 ? 'es' : ''}</div>`;
+
+  container.innerHTML = pageItems.map(_sessionCardHTML).join('') + pagination;
+}
+
+// Navega a una página específica conservando el filtro activo
+function _goToSessionPage(page) {
+  const sessions = _sessionsFiltered !== null ? _sessionsFiltered : Storage.getSessions();
+  _renderSessionsPage(sessions, page);
+  document.getElementById('view-sessions')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== Lista de Sesiones =====
+function loadSessions() {
+  _sessionsCurrentPage = 0;
+  _sessionsFiltered = null;
+  const sessions = Storage.getSessions();
+  _renderSessionsPage(sessions, 0);
 }
 
 let _filterSessionsTimer;
@@ -310,38 +361,10 @@ function filterSessions() {
     );
   }
 
-  const container = document.getElementById('sessions-list');
-  if (sessions.length === 0) {
-    container.innerHTML = '<p class="empty-state">No se encontraron sesiones.</p>';
-    return;
-  }
-
-  container.innerHTML = sessions.map(s => `
-    <div class="session-item" onclick="viewSessionDetails('${s.id}')">
-      <div class="session-item-header">
-        <span class="session-type-badge ${s.type}">${getTypeLabel(s.type)}</span>
-        <span class="session-status ${s.status}">${s.status === 'active' ? '● Activa' : '✓ Terminada'}</span>
-        <span class="session-date">${formatDateTime(s.startedAt)}</span>
-      </div>
-      <div class="session-item-title">${escapeHtml(s.title)}</div>
-      <div class="session-item-meta">
-        <span><i class="fas fa-clock"></i> ${formatDuration(s.duration || 0)}</span>
-        <span><i class="fas fa-comment-dots"></i> ${s.transcripts ? s.transcripts.length : 0} transcripciones</span>
-        <span><i class="fas fa-camera"></i> ${s.screenshots ? s.screenshots.length : 0} capturas</span>
-      </div>
-      <div class="session-item-actions">
-        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();viewSessionDetails('${s.id}')">
-          <i class="fas fa-eye"></i> Ver
-        </button>
-        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();editSession('${s.id}')">
-          <i class="fas fa-edit"></i> Editar
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteSession('${s.id}')">
-          <i class="fas fa-trash"></i> Eliminar
-        </button>
-      </div>
-    </div>
-  `).join('');
+  // Guardar lista filtrada y resetear a página 0
+  _sessionsFiltered = sessions;
+  _sessionsCurrentPage = 0;
+  _renderSessionsPage(sessions, 0);
 }
 
 function deleteSession(sessionId) {
