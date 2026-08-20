@@ -1489,3 +1489,122 @@ input:checked + .slider:before {
   padding: 6px 0 2px;
   text-align: right;
 }
+
+/* ===== Lightbox de capturas ===== */
+#screenshot-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#screenshot-lightbox.lb-visible {
+  opacity: 1;
+}
+
+.lb-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  cursor: zoom-out;
+}
+
+.lb-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+.lb-img-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.lb-img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.lb-caption {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.82rem;
+  color: #ccc;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.lb-counter {
+  color: #888;
+  font-size: 0.75rem;
+}
+
+.lb-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary, #1a73e8);
+  text-decoration: none;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border: 1px solid var(--primary, #1a73e8);
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.lb-dl:hover {
+  background: var(--primary, #1a73e8);
+  color: #fff;
+}
+
+.lb-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.lb-close:hover { opacity: 1; }
+
+.lb-nav {
+  background: rgba(255,255,255,0.12);
+  border: none;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.lb-nav:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
+.lb-nav:disabled { opacity: 0.25; cursor: default; }

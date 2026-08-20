@@ -1,4 +1,14 @@
-﻿## [2.0.3] - 2026-08-20
+﻿## [2.0.4] - 2026-08-20
+
+### Added
+- **Lightbox inline** al hacer clic en una captura — muestra la imagen a pantalla completa
+  dentro de la app sin abrir nueva pestana. Incluye navegacion anterior/siguiente,
+  contador "N / Total", boton de descarga y cierre con Esc o clic en el fondo.
+
+### Fixed
+- Clic en miniatura ya no abre pestana en blanco (about:blank). Reemplazado
+  window.open(this.src) por lightbox propio.
+## [2.0.3] - 2026-08-20
 
 ### Added
 - **Frame differencing** — captura automatica cuando se detecta cambio visual significativo
@@ -78,5 +88,6 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 

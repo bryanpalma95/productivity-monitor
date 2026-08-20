@@ -522,7 +522,8 @@ function _renderScreenshotPage(screenshots, page, sessionId) {
   const grid = pageItems.map(s => `
     <div class="screenshot-thumb">
       <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}"
-           onclick="window.open(this.src)" title="Clic para ver en pantalla completa">
+           onclick="_openLightbox('${s.id}', '${sessionId}')"
+           title="Clic para ver en pantalla completa" style="cursor:zoom-in">
       <div class="screenshot-thumb-footer">
         <span class="screenshot-time">${formatTime(s.timestamp)}</span>
         <a class="btn-screenshot-dl" href="${s.dataUrl}"
@@ -559,6 +560,70 @@ function _goToScreenshotPage(sessionId, page) {
   const container = document.getElementById('screenshots-modal-container');
   if (!container) return;
   container.innerHTML = _renderScreenshotPage(session.screenshots || [], page, sessionId);
+}
+
+// ===== Lightbox inline para ver captura a pantalla completa =====
+function _openLightbox(screenshotId, sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const screenshots = session.screenshots || [];
+  const idx = screenshots.findIndex(s => s.id === screenshotId);
+  if (idx === -1) return;
+
+  // Eliminar lightbox anterior si existe
+  const existing = document.getElementById('screenshot-lightbox');
+  if (existing) existing.remove();
+
+  const s = screenshots[idx];
+  const total = screenshots.length;
+
+  const lb = document.createElement('div');
+  lb.id = 'screenshot-lightbox';
+  lb.innerHTML = `
+    <div class="lb-backdrop" onclick="_closeLightbox()"></div>
+    <div class="lb-container">
+      <button class="lb-close" onclick="_closeLightbox()" title="Cerrar (Esc)">
+        <i class="fas fa-times"></i>
+      </button>
+      <button class="lb-nav lb-prev" onclick="_lbNavigate('${sessionId}', ${idx - 1}, ${total})"
+        ${idx === 0 ? 'disabled' : ''} title="Anterior">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div class="lb-img-wrap">
+        <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}" class="lb-img">
+        <div class="lb-caption">
+          <span>${formatDateTime(s.timestamp)}</span>
+          <span class="lb-counter">${idx + 1} / ${total}</span>
+          <a href="${s.dataUrl}" download="captura-${formatTime(s.timestamp).replace(/:/g,'-')}.jpg"
+             class="lb-dl" title="Descargar">
+            <i class="fas fa-download"></i> Descargar
+          </a>
+        </div>
+      </div>
+      <button class="lb-nav lb-next" onclick="_lbNavigate('${sessionId}', ${idx + 1}, ${total})"
+        ${idx >= total - 1 ? 'disabled' : ''} title="Siguiente">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(lb);
+  requestAnimationFrame(() => lb.classList.add('lb-visible'));
+}
+
+function _closeLightbox() {
+  const lb = document.getElementById('screenshot-lightbox');
+  if (lb) lb.remove();
+}
+
+function _lbNavigate(sessionId, newIdx, total) {
+  if (newIdx < 0 || newIdx >= total) return;
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+  const s = session.screenshots[newIdx];
+  if (!s) return;
+  _openLightbox(s.id, sessionId);
 }
 
 // ===== Exportar capturas =====
