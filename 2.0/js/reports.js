@@ -155,6 +155,10 @@ function exportReportPDF(sessionId) {
         .session { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
         .session h3 { margin: 0 0 10px 0; color: #1a73e8; }
         .transcript { margin: 5px 0; padding: 5px; background: #f9f9f9; border-radius: 4px; }
+        .screenshot-grid-pdf { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+        .screenshot-pdf { flex: 0 0 calc(33% - 10px); page-break-inside: avoid; }
+        .screenshot-pdf img { width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+        .screenshot-time-pdf { font-size: 10px; color: #666; text-align: center; margin-top: 3px; }
       </style>
     </head>
     <body>
@@ -190,6 +194,17 @@ function exportReportPDF(sessionId) {
           ${s.transcripts && s.transcripts.length > 0 ? `
             <h4>Transcripciones:</h4>
             ${s.transcripts.map(t => `<div class="transcript">[${formatTime(t.timestamp)}] ${t.text}</div>`).join('')}
+          ` : ''}
+          ${s.screenshots && s.screenshots.length > 0 ? `
+            <h4>Capturas (${s.screenshots.length}):</h4>
+            <div class="screenshot-grid-pdf">
+              ${s.screenshots.map(sc => `
+                <div class="screenshot-pdf">
+                  <img src="${sc.dataUrl}" alt="Captura">
+                  <div class="screenshot-time-pdf">${formatDateTime(sc.timestamp)}</div>
+                </div>
+              `).join('')}
+            </div>
           ` : ''}
         </div>
       `).join('')}

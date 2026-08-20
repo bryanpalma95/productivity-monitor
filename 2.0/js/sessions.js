@@ -495,13 +495,8 @@ function viewSessionDetails(sessionId) {
 
       <h4><i class="fas fa-camera"></i> Capturas (${screenshots.length})</h4>
       ${screenshots.length === 0 ? '<p class="empty-state">Sin capturas</p>' : `
-        <div class="screenshot-grid">
-          ${screenshots.slice(-6).map(s => `
-            <div class="screenshot-thumb">
-              <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}" onclick="window.open(this.src)">
-              <span>${formatTime(s.timestamp)}</span>
-            </div>
-          `).join('')}
+        <div id="screenshots-modal-container" data-session-id="${session.id}">
+          ${_renderScreenshotPage(screenshots, 0, session.id)}
         </div>
       `}
     </div>
@@ -514,7 +509,60 @@ function closeModal() {
   document.getElementById('reportModal').style.display = 'none';
 }
 
+// ===== Capturas: paginación y descarga individual =====
+const SCREENSHOTS_PER_PAGE = 6;
+
+function _renderScreenshotPage(screenshots, page, sessionId) {
+  const total = screenshots.length;
+  const totalPages = Math.ceil(total / SCREENSHOTS_PER_PAGE);
+  const safePage = Math.max(0, Math.min(page, totalPages - 1));
+  const start = safePage * SCREENSHOTS_PER_PAGE;
+  const pageItems = screenshots.slice(start, start + SCREENSHOTS_PER_PAGE);
+
+  const grid = pageItems.map(s => `
+    <div class="screenshot-thumb">
+      <img src="${s.dataUrl}" alt="Captura ${formatTime(s.timestamp)}"
+           onclick="window.open(this.src)" title="Clic para ver en pantalla completa">
+      <div class="screenshot-thumb-footer">
+        <span class="screenshot-time">${formatTime(s.timestamp)}</span>
+        <a class="btn-screenshot-dl" href="${s.dataUrl}"
+           download="captura-${formatTime(s.timestamp).replace(/:/g,'-')}.jpg"
+           onclick="event.stopPropagation()" title="Descargar">
+          <i class="fas fa-download"></i>
+        </a>
+      </div>
+    </div>
+  `).join('');
+
+  const pagination = totalPages > 1 ? `
+    <div class="screenshots-pagination">
+      <button class="btn btn-sm btn-secondary"
+        onclick="_goToScreenshotPage('${sessionId}', ${safePage - 1})"
+        ${safePage === 0 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <span class="pagination-info">${start + 1}–${Math.min(start + SCREENSHOTS_PER_PAGE, total)} de ${total}</span>
+      <button class="btn btn-sm btn-secondary"
+        onclick="_goToScreenshotPage('${sessionId}', ${safePage + 1})"
+        ${safePage >= totalPages - 1 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  ` : `<p class="screenshots-pagination-info">${total} captura${total !== 1 ? 's' : ''}</p>`;
+
+  return `<div class="screenshot-grid">${grid}</div>${pagination}`;
+}
+
+function _goToScreenshotPage(sessionId, page) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+  const container = document.getElementById('screenshots-modal-container');
+  if (!container) return;
+  container.innerHTML = _renderScreenshotPage(session.screenshots || [], page, sessionId);
+}
+
 // ===== Exportar capturas =====
+// exportScreenshots: si JSZip disponible → ZIP, si no → HTML imprimible (fallback)
 function exportScreenshots(sessionId) {
   const session = Storage.getSession(sessionId);
   if (!session) return;
@@ -525,7 +573,12 @@ function exportScreenshots(sessionId) {
     return;
   }
 
-  // Crear un HTML con todas las capturas para imprimir/guardar
+  if (typeof JSZip !== 'undefined') {
+    exportScreenshotsZip(sessionId);
+    return;
+  }
+
+  // Fallback: HTML imprimible
   const html = `
     <!DOCTYPE html>
     <html>
@@ -558,4 +611,49 @@ function exportScreenshots(sessionId) {
   win.document.close();
   win.focus();
   win.print();
+}
+
+// exportScreenshotsZip: descarga todas las capturas como .zip con archivos JPEG individuales
+async function exportScreenshotsZip(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const screenshots = session.screenshots || [];
+  if (screenshots.length === 0) {
+    showToast('⚠️ No hay capturas para exportar', 'error');
+    return;
+  }
+
+  if (typeof JSZip === 'undefined') {
+    showToast('⚠️ JSZip no disponible — usando vista de impresión', 'error');
+    exportScreenshots(sessionId);
+    return;
+  }
+
+  showToast('📦 Generando ZIP...');
+
+  const zip = new JSZip();
+  const folderName = (session.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  const folder = zip.folder(folderName);
+
+  screenshots.forEach((s, i) => {
+    const base64 = s.dataUrl.split(',')[1];
+    if (!base64) return;
+    const time = formatDateTime(s.timestamp).replace(/[/:, ]/g, '-');
+    folder.file(`captura-${String(i + 1).padStart(3, '0')}-${time}.jpg`, base64, { base64: true });
+  });
+
+  try {
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capturas-${folderName}-${Date.now()}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✅ ZIP descargado con ${screenshots.length} capturas`);
+  } catch (err) {
+    console.error('Error generando ZIP:', err);
+    showToast('❌ Error generando ZIP', 'error');
+  }
 }
