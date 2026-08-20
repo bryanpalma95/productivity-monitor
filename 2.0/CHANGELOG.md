@@ -1,4 +1,11 @@
-﻿## [2.0.8] - 2026-08-20
+﻿## [2.0.9] - 2026-08-20
+
+### Changed
+- Migracion a proyecto Firebase "My First Project" (steel-archery-417219) con Storage habilitado.
+- firebase.js: firebaseStorage restaurado en initFirebase().
+- index.html: firebase-storage-compat.js SDK restaurado.
+- Todo el codigo de Firebase Storage de v2.0.8 queda activo con el nuevo proyecto.
+## [2.0.8] - 2026-08-20
 
 ### Added
 - **Firebase Storage para capturas** — cuando el usuario esta logueado, las capturas
@@ -137,6 +144,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 
