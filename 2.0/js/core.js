@@ -123,7 +123,7 @@ const Storage = {
   },
 
   // Compresión de capturas
-  compressScreenshot(dataUrl, maxWidth = 640) {
+  compressScreenshot(dataUrl, maxWidth = 1280) {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -133,7 +133,7 @@ const Storage = {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.4));
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;

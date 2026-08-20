@@ -318,7 +318,8 @@ async function captureScreenshot() {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0);
 
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+  // Captura en resolución nativa — la compresión la maneja compressScreenshot
+  const dataUrl = canvas.toDataURL('image/png');
   const compressed = await Storage.compressScreenshot(dataUrl);
 
   const screenshot = {

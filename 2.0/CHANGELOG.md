@@ -1,4 +1,10 @@
-﻿## [2.0.4] - 2026-08-20
+﻿## [2.0.5] - 2026-08-20
+
+### Changed
+- **Calidad de capturas mejorada** — captura inicial ahora en PNG (sin perdida) antes de comprimir.
+  compressScreenshot: maxWidth 640px -> 1280px, calidad JPEG 0.4 -> 0.75.
+  Resultado: texto legible en capturas de pantalla completa (~150-200 KB vs ~50 KB anterior).
+## [2.0.4] - 2026-08-20
 
 ### Added
 - **Lightbox inline** al hacer clic en una captura — muestra la imagen a pantalla completa
@@ -88,6 +94,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 
