@@ -1,4 +1,13 @@
-﻿## [2.0.6] - 2026-08-20
+﻿## [2.0.7] - 2026-08-20
+
+### Added
+- Eliminar captura individual desde el lightbox: boton "Eliminar" rojo junto a "Descargar".
+  Navega automaticamente a la siguiente captura o cierra el lightbox si era la ultima.
+  El grid del modal y el indicador de storage se actualizan en tiempo real.
+- Boton "Descargar" en lightbox muestra feedback visual (verde, check) al hacer clic.
+- Despues de descargar el ZIP, ofrece eliminar todas las capturas de la sesion
+  para liberar espacio (muestra MB aproximados a liberar).
+## [2.0.6] - 2026-08-20
 
 ### Fixed
 - Frame differencing ahora analiza solo la zona central (70% ancho, 80% alto) del frame.
@@ -106,6 +115,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 

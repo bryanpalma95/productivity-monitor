@@ -1652,3 +1652,23 @@ input:checked + .slider:before {
   color: var(--muted, #888);
   font-size: 0.68rem;
 }
+
+/* ===== Botón eliminar en lightbox ===== */
+.lb-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  color: #f87171;
+  border: 1px solid #f87171;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lb-delete:hover {
+  background: #f87171;
+  color: #fff;
+}

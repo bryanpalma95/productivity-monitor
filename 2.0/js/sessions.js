@@ -610,9 +610,13 @@ function _openLightbox(screenshotId, sessionId) {
           <span>${formatDateTime(s.timestamp)}</span>
           <span class="lb-counter">${idx + 1} / ${total}</span>
           <a href="${s.dataUrl}" download="captura-${formatTime(s.timestamp).replace(/:/g,'-')}.jpg"
-             class="lb-dl" title="Descargar">
+             class="lb-dl" title="Descargar" onclick="_lbMarkDownloaded('${s.id}')">
             <i class="fas fa-download"></i> Descargar
           </a>
+          <button class="lb-delete" onclick="_deleteScreenshotFromLightbox('${s.id}', '${sessionId}', ${idx}, ${total})"
+            title="Eliminar esta captura">
+            <i class="fas fa-trash"></i> Eliminar
+          </button>
         </div>
       </div>
       <button class="lb-nav lb-next" onclick="_lbNavigate('${sessionId}', ${idx + 1}, ${total})"
@@ -638,6 +642,47 @@ function _lbNavigate(sessionId, newIdx, total) {
   const s = session.screenshots[newIdx];
   if (!s) return;
   _openLightbox(s.id, sessionId);
+}
+
+// Marca visualmente que la captura fue descargada (feedback al usuario)
+function _lbMarkDownloaded(screenshotId) {
+  const dlBtn = document.querySelector('.lb-dl');
+  if (dlBtn) {
+    dlBtn.innerHTML = '<i class="fas fa-check"></i> Descargado';
+    dlBtn.style.borderColor = '#4ade80';
+    dlBtn.style.color = '#4ade80';
+  }
+}
+
+// Elimina una captura individual desde el lightbox
+function _deleteScreenshotFromLightbox(screenshotId, sessionId, currentIdx, total) {
+  if (!confirm('¿Eliminar esta captura del historial? No se puede deshacer.')) return;
+
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const screenshots = (session.screenshots || []).filter(s => s.id !== screenshotId);
+  Storage.updateSession(sessionId, { screenshots });
+
+  // Actualizar grid del modal si está abierto
+  const container = document.getElementById('screenshots-modal-container');
+  if (container) {
+    container.innerHTML = _renderScreenshotPage(screenshots, 0, sessionId);
+  }
+
+  updateStorageIndicator();
+
+  const remaining = screenshots.length;
+  if (remaining === 0) {
+    _closeLightbox();
+    showToast('🗑️ Captura eliminada — sin más capturas en esta sesión');
+    return;
+  }
+
+  // Navegar a la siguiente captura (o anterior si era la última)
+  const nextIdx = Math.min(currentIdx, remaining - 1);
+  _openLightbox(screenshots[nextIdx].id, sessionId);
+  showToast('🗑️ Captura eliminada');
 }
 
 // ===== Exportar capturas =====
@@ -731,6 +776,22 @@ async function exportScreenshotsZip(sessionId) {
     a.click();
     URL.revokeObjectURL(url);
     showToast(`✅ ZIP descargado con ${screenshots.length} capturas`);
+
+    // Ofrecer eliminar capturas para liberar espacio
+    const approxMB = ((JSON.stringify(screenshots).length * 2) / (1024 * 1024)).toFixed(1);
+    setTimeout(() => {
+      if (confirm(
+        `ZIP descargado (${screenshots.length} capturas).\n\n` +
+        `¿Eliminar las capturas del historial para liberar ~${approxMB} MB?\n\n` +
+        `Las capturas quedarán en tu ZIP descargado.`
+      )) {
+        Storage.updateSession(sessionId, { screenshots: [] });
+        const container = document.getElementById('screenshots-modal-container');
+        if (container) container.innerHTML = '<p class="empty-state">Sin capturas</p>';
+        updateStorageIndicator();
+        showToast(`🗑️ ${screenshots.length} capturas eliminadas — ${approxMB} MB liberados`);
+      }
+    }, 500);
   } catch (err) {
     console.error('Error generando ZIP:', err);
     showToast('❌ Error generando ZIP', 'error');
