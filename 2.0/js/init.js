@@ -8,6 +8,12 @@ function initApp() {
   // Restaurar la vista que estaba activa antes de recargar (via hash)
   restoreViewFromHash();
 
+  // Inyectar versión dinámica en el header — fuente de verdad: APP_VERSION en core.js
+  const versionEl = document.getElementById('app-version-display');
+  if (versionEl && typeof APP_VERSION !== 'undefined') {
+    versionEl.textContent = 'v' + APP_VERSION;
+  }
+
   // Verificar sesión activa
   setTimeout(checkForActiveSession, 500);
 
