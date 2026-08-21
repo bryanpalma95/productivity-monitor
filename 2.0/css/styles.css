@@ -1672,3 +1672,32 @@ input:checked + .slider:before {
   background: #f87171;
   color: #fff;
 }
+
+/* ===== Contexto del Proyecto ===== */
+.project-context-textarea {
+  width: 100%;
+  min-height: 200px;
+  max-height: 500px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  background: var(--bg-secondary, #161616);
+  color: var(--text, #f0f0f0);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.project-context-textarea:focus {
+  outline: none;
+  border-color: var(--primary, #1a73e8);
+}
+
+.project-context-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+  color: var(--muted, #888);
+}

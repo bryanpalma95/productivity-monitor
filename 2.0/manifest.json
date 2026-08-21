@@ -2,7 +2,7 @@
   "name": "Productivity Monitor 2.0",
   "short_name": "ProdMonitor2",
   "description": "Productivity Monitor 2.0 â€” minutas IA, resumen guardado, Markdown nativo y UX mejorada.",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

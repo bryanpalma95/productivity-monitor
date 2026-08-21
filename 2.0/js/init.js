@@ -213,6 +213,115 @@ function updateStorageIndicator() {
   `;
 }
 
+// ===== Contexto del Proyecto — UI =====
+function initProjectContextUI() {
+  const textarea = document.getElementById('projectContextInput');
+  const stats = document.getElementById('projectContextStats');
+  if (!textarea) return;
+
+  const saved = Storage.getProjectContext();
+  if (saved) {
+    textarea.value = saved;
+    _updateProjectContextStats(saved);
+  }
+}
+
+function _updateProjectContextStats(text) {
+  const stats = document.getElementById('projectContextStats');
+  if (!stats || !text) { if (stats) stats.innerHTML = ''; return; }
+  const words = text.trim().split(/\s+/).length;
+  const chars = text.length;
+  const color = words > 3000 ? 'var(--warning)' : 'var(--muted)';
+  stats.innerHTML = `<span>${words} palabras</span><span>${chars} caracteres</span><span style="color:${color}">${words > 3000 ? '⚠️ Supera recomendación (3000)' : '✓ Dentro del límite'}</span>`;
+}
+
+function saveProjectContext() {
+  const textarea = document.getElementById('projectContextInput');
+  if (!textarea) return;
+  Storage.saveProjectContext(textarea.value);
+  _updateProjectContextStats(textarea.value);
+  const status = document.getElementById('projectContextStatus');
+  if (status) status.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> Contexto guardado — se usará en el próximo resumen IA.';
+  showToast('✅ Contexto del proyecto guardado');
+}
+
+function clearProjectContextUI() {
+  if (!confirm('¿Limpiar el contexto del proyecto?')) return;
+  Storage.clearProjectContext();
+  const textarea = document.getElementById('projectContextInput');
+  if (textarea) textarea.value = '';
+  _updateProjectContextStats('');
+  const status = document.getElementById('projectContextStatus');
+  if (status) status.innerHTML = '';
+  showToast('🗑️ Contexto eliminado');
+}
+
+function loadArcherContext() {
+  const template = `CONTEXTO DEL PROYECTO (Proyecto Archer GRC SaaS — Transbank):
+
+GLOSARIO TÉCNICO:
+- Archer: plataforma SaaS GRC (Governance, Risk & Compliance) — reemplaza OpenPage/IBM
+- Snowflake: base de datos cloud (Datalake Personas de Transbank — ~600 registros colaboradores)
+- Jira: herramienta de gestión de proyectos/incidentes (transbankcl.atlassian.net)
+- QlikSense: plataforma BI para dashboards ejecutivos
+- Lambda: funciones serverless AWS que ejecutan las integraciones
+- API Gateway: punto de entrada REST en AWS
+- S3: almacenamiento de archivos en AWS (CSV intermedios)
+- CAWA / Control-M: orquestador de mallas batch
+- GRC: Governance, Risk and Compliance
+- Full Refresh: actualización que reemplaza TODA la data (no incremental)
+- ODA: On-Demand Application (módulo custom de Archer)
+- C2/C4: controles de riesgo que Archer actualiza en Jira
+- Feature 01-08: las 8 integraciones a certificar
+
+CORRECCIONES FONÉTICAS (errores comunes de speech-to-text):
+- "snoflex", "NoFlex", "snowflex", "snow flex" → Snowflake
+- "Gira", "chira", "jira" → Jira
+- "ACTIV", "activ" → Archer (la plataforma)
+- "Asertiva", "assertiva" → Asertiva (proveedor de soporte)
+- "Contralm", "contralo" → Contraloría
+- "datalake personas", "data lake" → Datalake Personas (Snowflake)
+- "caua", "cava" → CAWA (Control-M)
+
+EQUIPO DEL PROYECTO:
+- Brian (Bryan, Braia): QA Engineer — el que graba las sesiones
+- Mariela (Mari): Coordinadora del proyecto
+- Chris (Crisler): BA — explica historias de usuario
+- Carlos: Arquitecto de solución
+- Nico: Desarrollador de APIs (AWS Lambda)
+- Ariel: Reportes QlikSense
+- Jorlani: Usuaria de negocio (Riesgo)
+- Tommy / Tomás: Infraestructura
+- Felipe Olmos: Proveedor Asertiva (Archer)
+- Tito: Gestiones internas
+- Carola: Contraloría
+- Oscar: Miembro del equipo QA
+- Álvaro: Miembro del equipo (certificación, pruebas)
+- Virginia: Gestión de recursos
+
+STREAMS DEL PROYECTO:
+1. Snowflake → Archer (Colaboradores/Personas) — PP: 24 Sep — FOCO PRINCIPAL
+2. Jira ↔ Archer (Incidentes + Portafolio + C2/C4) — PP: 29 Oct
+3. Archer → QlikSense (Auditorías + Planes Riesgo N2) — PP: 10 Sep
+4. QlikSense Auditoría — PP: 27 Ago (ya certificado por Ariel)
+
+REGLAS DE NEGOCIO CLAVE:
+- Unidad de negocio: prioridad Area hija > Subgerencia > Gerencia
+- Colaboradores inactivos: no se eliminan, no son asignables como nuevos responsables
+- Exclusión RECO: iniciativas Jira con tipo/categoría RECO no se integran
+- C2/C4: no editables en Jira, solo Archer los actualiza, no sobreescribir con vacíos
+- 4 campos rechazados en Incidentes (Proceso origen, Proceso afectado, Producto, Proveedor)
+- Registro de trazabilidad: campos son procesados/exitosos/con error (NO "imputados")
+- Flujo técnico: Snowflake COPY INTO → S3 (CSV) → Lambda → API Gateway → Archer consume`;
+
+  const textarea = document.getElementById('projectContextInput');
+  if (textarea) {
+    textarea.value = template;
+    _updateProjectContextStats(template);
+  }
+  showToast('📋 Plantilla Archer cargada — revisa y guarda');
+}
+
 // ===== PWA / Service Worker =====
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;

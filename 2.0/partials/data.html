@@ -134,6 +134,48 @@
     </div>
   </div>
 
+  <!-- Contexto del Proyecto para Resumen IA -->
+  <div class="card">
+    <h3><i class="fas fa-brain"></i> Contexto del Proyecto</h3>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">
+      Agrega información sobre tu proyecto actual para que el resumen IA use términos correctos,
+      identifique participantes y corrija errores fonéticos de transcripción.
+      <strong>No se comparte externamente</strong> — solo se envía junto a la transcripción cuando generas un resumen.
+    </p>
+
+    <div class="project-context-stats" id="projectContextStats"></div>
+
+    <div class="form-group">
+      <label for="projectContextInput">
+        <i class="fas fa-file-alt"></i> Contexto del proyecto
+        <span style="font-weight:normal;color:var(--muted);font-size:0.8rem"> (máx. ~3000 palabras recomendado)</span>
+      </label>
+      <textarea id="projectContextInput"
+        class="project-context-textarea"
+        placeholder="Pega aquí el glosario técnico, nombres del equipo, sistemas involucrados, correcciones fonéticas y reglas de negocio clave...
+
+Ejemplo:
+GLOSARIO: Archer = plataforma GRC, Snowflake = datalake, Jira = gestión proyectos
+EQUIPO: Brian (QA), Mari (coordinadora), Nico (dev)
+CORRECCIONES: NoFlex → Snowflake, Gira → Jira
+PROYECTO: Certificación integraciones Archer GRC SaaS"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary" onclick="saveProjectContext()">
+        <i class="fas fa-save"></i> Guardar contexto
+      </button>
+      <button class="btn btn-secondary" onclick="loadArcherContext()">
+        <i class="fas fa-magic"></i> Cargar plantilla Archer
+      </button>
+      <button class="btn btn-secondary" onclick="clearProjectContextUI()">
+        <i class="fas fa-trash"></i> Limpiar
+      </button>
+    </div>
+
+    <div id="projectContextStatus" style="margin-top:12px;font-size:0.85rem;color:var(--text-secondary)"></div>
+  </div>
+
   <div class="card">
     <h3><i class="fas fa-database"></i> Almacenamiento Local</h3>
     <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:16px">

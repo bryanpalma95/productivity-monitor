@@ -417,6 +417,15 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
   const session = Storage.getSession(sessionId);
   if (!session) return;
 
+  // Obtener contexto del proyecto si está configurado
+  const projectContext = (typeof Storage.getProjectContext === 'function')
+    ? Storage.getProjectContext()
+    : localStorage.getItem('project_context') || '';
+
+  const contextBlock = projectContext
+    ? `\n\nCONTEXTO DEL PROYECTO ACTIVO (úsalo para interpretar términos técnicos, nombres y corregir errores fonéticos de la transcripción):\n${projectContext}`
+    : '';
+
   const modal = document.getElementById('reportModal');
   const title = document.getElementById('modalTitle');
   const body = document.getElementById('modalBody');
@@ -515,7 +524,7 @@ REGLAS OBLIGATORIAS:
 - Extrae nombres propios, proyectos, sistemas y datos concretos que aparezcan en la transcripción
 - Nunca inventes información que no esté en la transcripción
 - Si un apartado no tiene información real, usa el texto de fallback indicado (no lo omitas)
-- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]`
+- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]${contextBlock}`
         },
         {
           role: 'user',
@@ -571,7 +580,7 @@ Genera un resumen estructurado en español (máximo 400 palabras) con:
 5) **Problemas identificados** — bloqueos o impedimentos mencionados
 6) **Fechas o plazos** — cualquier fecha, deadline o plazo mencionado
 
-Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga. Sé específico y extrae datos concretos.`
+Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga. Sé específico y extrae datos concretos.${contextBlock}`
         },
         {
           role: 'user',
@@ -652,7 +661,7 @@ REGLAS OBLIGATORIAS:
 - Usa los datos reales de la sesión en la tabla (Fecha, Duración, Tipo)
 - Consolida sin repetir información, pero no omitas nada importante
 - Nunca inventes datos
-- Si un apartado no tiene información, usa el texto de fallback indicado`
+- Si un apartado no tiene información, usa el texto de fallback indicado${contextBlock}`
         },
         {
           role: 'user',

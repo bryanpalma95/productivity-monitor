@@ -3,7 +3,7 @@
    Estado global, almacenamiento y utilidades
    ============================================================ */
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.1.1';
 
 // ===== Estado Global =====
 const App = {
@@ -90,7 +90,27 @@ const Storage = {
   clearAll() {
     localStorage.removeItem(this.KEY);
     localStorage.removeItem(this.META_KEY);
+    localStorage.removeItem('project_context');
     this.syncToCloud();
+  },
+
+  // ===== Contexto del Proyecto para Resumen IA =====
+  PROJECT_CONTEXT_KEY: 'project_context',
+
+  getProjectContext() {
+    return localStorage.getItem(this.PROJECT_CONTEXT_KEY) || '';
+  },
+
+  saveProjectContext(text) {
+    if (text && text.trim()) {
+      localStorage.setItem(this.PROJECT_CONTEXT_KEY, text.trim());
+    } else {
+      localStorage.removeItem(this.PROJECT_CONTEXT_KEY);
+    }
+  },
+
+  clearProjectContext() {
+    localStorage.removeItem(this.PROJECT_CONTEXT_KEY);
   },
 
   // Sincronizar con la nube si el usuario estÃ¡ autenticado
@@ -224,6 +244,7 @@ function switchView(viewName) {
   if (viewName === 'data') {
     updateStorageIndicator();
     if (typeof initGroqKeyUI === 'function') initGroqKeyUI();
+    if (typeof initProjectContextUI === 'function') initProjectContextUI();
   }
 
   // Persistir vista en el hash para sobrevivir recargas

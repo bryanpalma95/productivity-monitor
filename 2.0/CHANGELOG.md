@@ -1,4 +1,22 @@
-﻿## [2.1.0] - 2026-08-20
+﻿## [2.1.1] - 2026-08-20
+
+### Added
+- **Contexto del Proyecto** — nueva seccion en Mis Datos donde se configura informacion
+  del proyecto actual (glosario tecnico, equipo, correcciones foneticas, reglas de negocio).
+  Se inyecta automaticamente en el system prompt de los 3 prompts del resumen IA.
+- Boton "Cargar plantilla Archer" precarga el contexto destilado del proyecto Archer.
+- Contador de palabras/caracteres con advertencia si supera 3000 palabras.
+- Storage.getProjectContext() / saveProjectContext() / clearProjectContext() en core.js.
+- initProjectContextUI() se ejecuta al navegar a Mis Datos.
+
+### Changed
+- Los 3 prompts (chunk unico, parciales, consolidacion) ahora reciben el bloque de contexto
+  del proyecto al final del system prompt. Esto permite a la IA:
+  - Corregir errores foneticos (NoFlex -> Snowflake, Gira -> Jira)
+  - Identificar participantes por nombre y rol
+  - Entender terminologia especifica del proyecto
+  - No inventar sistemas inexistentes
+## [2.1.0] - 2026-08-20
 
 ### Changed
 - **Prompts de resumen IA mejorados** — los tres prompts (sesion corta, chunks parciales,
@@ -156,6 +174,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 
