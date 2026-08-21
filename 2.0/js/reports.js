@@ -526,7 +526,8 @@ REGLAS OBLIGATORIAS:
 - Si un apartado no tiene información real, usa el texto de fallback indicado (no lo omitas)
 - Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]
 - PARTICIPANTES: lista solo a quienes hablan directamente (su voz aparece en la transcripción). Las personas mencionadas por otros van en la sección de Temas o Compromisos, no en Participantes.
-- ERRORES FONÉTICOS: la transcripción viene de speech-to-text y puede contener errores. Si una palabra no tiene sentido en el contexto pero fonéticamente se parece a un término técnico conocido, usa el término correcto. Si no puedes inferirlo, déjalo como está sin inventar.${contextBlock}`
+- ERRORES FONÉTICOS: la transcripción viene de speech-to-text y puede contener errores. Si una palabra no tiene sentido en el contexto pero fonéticamente se parece a un término técnico conocido, usa el término correcto. Si no puedes inferirlo, déjalo como está sin inventar.
+- IDENTIFICACIÓN DE HABLANTES: cuando puedas inferir quién habla basándote en el contexto (rol, tema, estilo, contenido), indica el nombre entre corchetes antes de la cita relevante: **[Nico]** "ya terminé la API". Si no puedes inferir con confianza, usa [Participante]. El audio [🔊] mezcla todas las voces; el micrófono siempre es el usuario que graba.${contextBlock}`
         },
         {
           role: 'user',

@@ -1,4 +1,10 @@
-﻿## [2.1.2] - 2026-08-20
+﻿## [2.1.3] - 2026-08-20
+
+### Added
+- **Identificacion de hablantes por inferencia**: la IA intenta deducir quien dice cada cosa
+  basandose en rol, tema y contexto del proyecto. Indica el nombre entre corchetes antes
+  de la cita relevante. Si no puede inferir, usa [Participante]. Sin costo adicional.
+## [2.1.2] - 2026-08-20
 
 ### Fixed
 - **Participantes**: prompt ahora distingue entre quienes HABLAN y quienes son MENCIONADOS.
@@ -181,6 +187,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 

@@ -3,7 +3,7 @@
    Estado global, almacenamiento y utilidades
    ============================================================ */
 
-const APP_VERSION = '2.1.2';
+const APP_VERSION = '2.1.3';
 
 // ===== Estado Global =====
 const App = {
