@@ -1,14 +1,14 @@
 /* ============================================================
    Productivity Monitor - Firebase Config
-   Configuración del proyecto Firebase "Productivity-monitor"
+   Proyecto: My First Project (steel-archery-417219)
    ============================================================ */
 
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBe4eR9o-GNqYYdXUXr8zj0x-hZOnVi1WM",
-  authDomain: "productivity-monitor-fcdd4.firebaseapp.com",
-  projectId: "productivity-monitor-fcdd4",
-  storageBucket: "productivity-monitor-fcdd4.firebasestorage.app",
-  messagingSenderId: "700019372233",
-  appId: "1:700019372233:web:71e140e17bbc1260e8dd18",
-  measurementId: "G-792GJPKG6K"
+  apiKey: "AIzaSyCcmE7WPZgj-PCZRNuKgjRcBbqbHgZSvog",
+  authDomain: "steel-archery-417219.firebaseapp.com",
+  projectId: "steel-archery-417219",
+  storageBucket: "steel-archery-417219.firebasestorage.app",
+  messagingSenderId: "665545624263",
+  appId: "1:665545624263:web:d04f0e54131d4601eb0ce2",
+  measurementId: "G-GZVTPX99EN"
 };

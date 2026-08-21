@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor 2.0 - Reports Module
+   Productivity Monitor - Reports Module v3.2.0
    Reportes, exportación y análisis con IA
    ============================================================ */
 
@@ -155,10 +155,6 @@ function exportReportPDF(sessionId) {
         .session { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
         .session h3 { margin: 0 0 10px 0; color: #1a73e8; }
         .transcript { margin: 5px 0; padding: 5px; background: #f9f9f9; border-radius: 4px; }
-        .screenshot-grid-pdf { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
-        .screenshot-pdf { flex: 0 0 calc(33% - 10px); page-break-inside: avoid; }
-        .screenshot-pdf img { width: 100%; border: 1px solid #ddd; border-radius: 4px; }
-        .screenshot-time-pdf { font-size: 10px; color: #666; text-align: center; margin-top: 3px; }
       </style>
     </head>
     <body>
@@ -194,17 +190,6 @@ function exportReportPDF(sessionId) {
           ${s.transcripts && s.transcripts.length > 0 ? `
             <h4>Transcripciones:</h4>
             ${s.transcripts.map(t => `<div class="transcript">[${formatTime(t.timestamp)}] ${t.text}</div>`).join('')}
-          ` : ''}
-          ${s.screenshots && s.screenshots.length > 0 ? `
-            <h4>Capturas (${s.screenshots.length}):</h4>
-            <div class="screenshot-grid-pdf">
-              ${s.screenshots.map(sc => `
-                <div class="screenshot-pdf">
-                  <img src="${sc.dataUrl}" alt="Captura">
-                  <div class="screenshot-time-pdf">${formatDateTime(sc.timestamp)}</div>
-                </div>
-              `).join('')}
-            </div>
           ` : ''}
         </div>
       `).join('')}
@@ -304,16 +289,16 @@ function exportJSON() {
 }
 
 // ===== Resumen IA =====
-const AI_CHUNK_SIZE = 8000;  // aumentado — OpenRouter soporta contextos grandes
+const AI_CHUNK_SIZE = 4000;
 const AI_MAX_CHUNKS = 20;
 
 // Proveedor IA: OpenRouter — un endpoint estable con 20+ modelos gratuitos
-// Usamos un modelo específico con contexto largo (128K) en vez de 'auto'
-// para evitar que rutee a modelos con contexto corto que cortan el resumen.
+// El modelo 'openrouter/auto' enruta automáticamente al mejor modelo gratuito disponible
+// Docs: https://openrouter.ai/docs
 const AI_PROVIDER = 'openrouter';
-const AI_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+const AI_MODEL = 'openrouter/auto';
 const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const AI_MODEL_UPDATED = '2026-08-20';
+const AI_MODEL_UPDATED = '2026-08-19'; // Migrado desde Groq (modelos deprecados frecuentemente)
 
 // Llama a OpenRouter para generar texto
 // Requiere una API key de OpenRouter (gratuita, sin tarjeta): https://openrouter.ai/keys
@@ -335,7 +320,7 @@ async function callGroqChat(messages) {
       model: AI_MODEL,
       messages,
       temperature: 0.3,
-      max_tokens: 8192
+      max_tokens: 1024
     })
   });
 
@@ -347,50 +332,6 @@ async function callGroqChat(messages) {
 
   const data = await res.json();
   return data.choices?.[0]?.message?.content || 'No se pudo generar el resumen.';
-}
-
-// Elimina entradas de ruido antes de enviar a la IA:
-//   - Textos muy cortos sin contenido real (< 3 chars)
-//   - Palabras de relleno conocidas ("Gracias.", "Ok.", etc.) que el micrófono
-//     capta del fondo y no aportan información
-//   - Repeticiones consecutivas exactas del mismo texto
-// Conserva SIEMPRE las entradas del sistema [🔊] sin filtrar.
-function cleanTranscriptsForAI(transcripts) {
-  const NOISE_PATTERNS = [
-    /^gracias\.?$/i,
-    /^ok\.?$/i,
-    /^sí\.?$/i,
-    /^no\.?$/i,
-    /^\.{1,3}$/,
-    /^¿?qué\??\.?$/i,
-    /^claro\.?$/i,
-    /^perfecto\.?$/i,
-    /^entendido\.?$/i,
-    /^de acuerdo\.?$/i,
-  ];
-
-  let lastText = null;
-  return transcripts.filter(t => {
-    const text = (t.text || '').trim();
-
-    // Descartar vacíos o demasiado cortos
-    if (text.length < 3) return false;
-
-    // Las entradas del sistema [🔊] siempre pasan sin filtro
-    if (text.startsWith('[🔊]')) {
-      lastText = text;
-      return true;
-    }
-
-    // Descartar ruido de fondo conocido
-    if (NOISE_PATTERNS.some(p => p.test(text))) return false;
-
-    // Descartar repetición consecutiva exacta
-    if (text === lastText) return false;
-
-    lastText = text;
-    return true;
-  });
 }
 
 // Función para dividir la transcripción en fragmentos
@@ -413,32 +354,15 @@ function splitTranscriptIntoChunks(transcripts, chunkSize) {
   return chunks;
 }
 
-async function generateAISummary(sessionId, forceRegenerate = false) {
+async function generateAISummary(sessionId) {
   const session = Storage.getSession(sessionId);
   if (!session) return;
-
-  // Obtener contexto del proyecto si está configurado
-  const projectContext = (typeof Storage.getProjectContext === 'function')
-    ? Storage.getProjectContext()
-    : localStorage.getItem('project_context') || '';
-
-  const contextBlock = projectContext
-    ? `\n\nCONTEXTO DEL PROYECTO ACTIVO (úsalo para interpretar términos técnicos, nombres y corregir errores fonéticos de la transcripción):\n${projectContext}`
-    : '';
 
   const modal = document.getElementById('reportModal');
   const title = document.getElementById('modalTitle');
   const body = document.getElementById('modalBody');
 
   title.textContent = 'Resumen IA';
-
-  // Si ya hay un resumen guardado y no se fuerza regenerar, mostrarlo directamente
-  if (!forceRegenerate && session.aiSummary) {
-    window._lastAISummary = { text: session.aiSummary, sessionId };
-    renderAISummaryResult(body, session.id, session.aiSummary, true);
-    return;
-  }
-
   body.innerHTML = `
     <div class="ai-summary">
       <div class="ai-loading">
@@ -452,11 +376,8 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
   const screenshots = session.screenshots || [];
   const sessionDate = session.startedAt ? formatDateTime(session.startedAt) : 'Desconocida';
 
-  // Limpiar ruido antes de chunking — filtra "Gracias." ×50, repeticiones, etc.
-  const cleanedTranscripts = cleanTranscriptsForAI(transcripts);
-
-  // Dividir la transcripción limpia en fragmentos
-  const chunks = splitTranscriptIntoChunks(cleanedTranscripts, AI_CHUNK_SIZE);
+  // Dividir la transcripción completa en fragmentos
+  const chunks = splitTranscriptIntoChunks(transcripts, AI_CHUNK_SIZE);
   const chunksToProcess = chunks.slice(0, AI_MAX_CHUNKS);
   const totalChunks = chunks.length;
   const isTruncated = totalChunks > AI_MAX_CHUNKS;
@@ -469,65 +390,58 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
       const summary = await callGroqChat([
         {
           role: 'system',
-          content: `Eres un asistente experto en productividad personal y toma de minutas. Analizas transcripciones automáticas de sesiones de trabajo grabadas con un monitor de productividad.
-
-CONTEXTO IMPORTANTE sobre la transcripción:
-- Las líneas con prefijo [🔊] son audio del SISTEMA (lo que escuchan los demás: reuniones, videollamadas, presentaciones)
-- Las líneas SIN prefijo son audio del MICRÓFONO (lo que dice el usuario que graba)
-- Los timestamps [HH:MM] indican el momento en que se dijo cada frase
-- La transcripción puede tener imperfecciones de reconocimiento de voz
-
-Genera un informe COMPLETO en español usando exactamente este formato Markdown. Extrae TODA la información concreta: nombres de personas, proyectos, fechas, números, decisiones, problemas y compromisos mencionados.
+          content: `Eres un secretario ejecutivo experto en tomar minutas de reuniones y sesiones de trabajo. 
+Analiza la transcripción y genera un informe DETALLADO en español con el siguiente formato Markdown.
+Extrae TODA la información concreta que encuentres: nombres, fechas, números, decisiones, compromisos.
 
 # 📋 Informe de Sesión
 
 ## 📌 Resumen Ejecutivo
-(2-3 oraciones que describan QUÉ ocurrió en esta sesión, el contexto y el resultado principal. Sé específico, no genérico.)
+(3-4 oraciones describiendo el propósito, contexto y resultado principal de la sesión)
 
 ## 🗓️ Datos de la Sesión
 | Campo | Valor |
 |-------|-------|
-| Fecha | FECHA_REAL |
-| Duración | DURACION_REAL |
-| Tipo | TIPO_REAL |
-| Participantes | (lista SOLO los nombres de quienes HABLAN directamente en la reunión, no los que son mencionados por otros) |
+| Fecha | (fecha de la sesión) |
+| Duración | (duración) |
+| Tipo | (tipo de sesión) |
+| Participantes | (nombres mencionados, o "No identificados") |
 
 ## 🎯 Temas Tratados
-(Lista cada tema con una descripción concreta de qué se discutió. Si no hay temas identificables, escribe "Sin temas identificados".)
-- **[Nombre del tema]**: qué se dijo específicamente sobre este tema
+(Lista detallada de TODOS los temas discutidos, con contexto)
+- **Tema 1**: descripción detallada de qué se habló
+- **Tema 2**: descripción detallada
 
 ## ✅ Decisiones y Acuerdos
-(Decisiones concretas tomadas. Si no hay ninguna, escribe "Sin decisiones registradas".)
-- [Decisión concreta]
+(Decisiones concretas tomadas durante la sesión)
+- Decisión 1
+- Decisión 2
 
 ## 📅 Fechas y Plazos Mencionados
-(Extrae TODAS las fechas, deadlines o plazos. Si no hay, escribe "Sin fechas mencionadas".)
-- [Fecha o plazo concreto y su contexto]
+(Extrae TODAS las fechas, deadlines, plazos o hitos mencionados)
+- Fecha/plazo 1
+- Fecha/plazo 2
 
 ## ✔️ Tareas Realizadas
-(Lo que se mencionó como ya hecho o completado. Si no hay, escribe "Sin tareas completadas mencionadas".)
-- [Tarea completada]
+- Tarea completada 1
+- Tarea completada 2
 
 ## 📋 Compromisos y Pendientes
-(Tareas prometidas, asignadas o pendientes. Incluye responsable si se mencionó. Si no hay, escribe "Sin compromisos registrados".)
-- [ ] [Tarea pendiente] — Responsable: [nombre o "Sin asignar"]
+(Tareas asignadas o prometidas, con responsable si se menciona)
+- [ ] Tarea pendiente — Responsable: (nombre o "Sin asignar")
+- [ ] Tarea pendiente 2
 
-## 💡 Problemas e Impedimentos
-(Bloqueos, errores, problemas técnicos o de proceso mencionados. Si no hay, escribe "Sin problemas reportados".)
-- [Problema identificado y su contexto]
+## 💡 Observaciones y Riesgos
+(Problemas identificados, riesgos, bloqueos o puntos de atención)
 
 ---
-*Generado automáticamente · Productivity Monitor 2.0*
+*Generado automáticamente a partir de la transcripción de la sesión*
 
-REGLAS OBLIGATORIAS:
-- Usa los datos reales de la sesión en la tabla (Fecha, Duración, Tipo) — no dejes los valores como texto entre paréntesis
-- Extrae nombres propios, proyectos, sistemas y datos concretos que aparezcan en la transcripción
-- Nunca inventes información que no esté en la transcripción
-- Si un apartado no tiene información real, usa el texto de fallback indicado (no lo omitas)
-- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]
-- PARTICIPANTES: lista solo a quienes hablan directamente (su voz aparece en la transcripción). Las personas mencionadas por otros van en la sección de Temas o Compromisos, no en Participantes.
-- ERRORES FONÉTICOS: la transcripción viene de speech-to-text y puede contener errores. Si una palabra no tiene sentido en el contexto pero fonéticamente se parece a un término técnico conocido, usa el término correcto. Si no puedes inferirlo, déjalo como está sin inventar.
-- IDENTIFICACIÓN DE HABLANTES: las líneas SIN prefijo [🔊] son SIEMPRE Bryan (el usuario que graba con su micrófono). Las líneas con [🔊] son otros participantes hablando en la reunión — infiere quién dice qué por contexto (rol, tema). En Participantes lista a Bryan + los nombres que puedas inferir del audio del sistema.${contextBlock}`
+REGLAS IMPORTANTES:
+- Sé EXHAUSTIVO y DETALLADO — más información es mejor que menos
+- Extrae nombres propios, fechas, números y datos concretos que aparezcan en la transcripción
+- Si un campo no tiene información, escribe "No se identificó en la transcripción"
+- No inventes datos, solo usa lo que está en la transcripción`
         },
         {
           role: 'user',
@@ -536,24 +450,15 @@ Tipo: ${getTypeLabel(session.type)}
 Fecha: ${sessionDate}
 Duración: ${formatDuration(session.duration || 0)}
 Capturas de pantalla: ${screenshots.length}
-Líneas de transcripción: ${cleanedTranscripts.length} (de ${transcripts.length} totales, ruido filtrado)
+Líneas de transcripción: ${transcripts.length}
 
 Transcripción completa:
 ${transcriptText || 'Sin transcripciones disponibles'}`
         }
       ]);
 
-      window._lastAISummary = { text: summary, sessionId };
-      Storage.updateSession(sessionId, { aiSummary: summary, aiSummaryDate: Date.now() });
-
-      // Detectar si el resumen se cortó (no tiene el footer esperado)
-      const isTruncatedSummary = !summary.includes('Generado automáticamente') && !summary.includes('Productivity Monitor');
-      if (isTruncatedSummary) {
-        const truncNote = '\n\n---\n⚠️ *El resumen puede estar incompleto. El modelo alcanzó su límite de tokens. Prueba con una sesión más corta o regenera.*';
-        window._lastAISummary.text = summary + truncNote;
-      }
-
-      renderAISummaryResult(body, session.id, window._lastAISummary.text);
+      window._lastAISummary = summary;
+      renderAISummaryResult(body, session.id, summary);
       return;
     }
 
@@ -576,22 +481,12 @@ ${transcriptText || 'Sin transcripciones disponibles'}`
       const partial = await callGroqChat([
         {
           role: 'system',
-          content: `Eres un analista experto en productividad. Analiza este FRAGMENTO de una sesión de trabajo.
+          content: `Eres un analista experto en productividad. Analiza este FRAGMENTO de una sesión de trabajo y genera un resumen breve en español con:
+1) Temas principales
+2) Tareas realizadas
+3) Pendientes o puntos de acción
 
-CONTEXTO:
-- Líneas con [🔊] = audio del sistema (reunión, videollamada, presentación)
-- Líneas sin prefijo = audio del micrófono del usuario
-- Puede haber imperfecciones de reconocimiento de voz
-
-Genera un resumen estructurado en español (máximo 400 palabras) con:
-1) **Temas principales** — qué se discutió con detalles concretos
-2) **Personas mencionadas** — nombres y su contexto
-3) **Tareas realizadas** — lo que se mencionó como hecho
-4) **Pendientes o compromisos** — tareas prometidas o asignadas con responsable
-5) **Problemas identificados** — bloqueos o impedimentos mencionados
-6) **Fechas o plazos** — cualquier fecha, deadline o plazo mencionado
-
-Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga. Sé específico y extrae datos concretos.${contextBlock}`
+Sé conciso (máximo 150 palabras). Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga.`
         },
         {
           role: 'user',
@@ -622,57 +517,52 @@ ${chunksToProcess[i]}`
     const finalSummary = await callGroqChat([
       {
         role: 'system',
-        content: `Eres un asistente experto en productividad personal y toma de minutas. Recibes resúmenes parciales de una sesión de trabajo larga, dividida en fragmentos.
-
-Tu tarea es consolidar TODA la información en un informe final cohesivo, sin repeticiones pero sin omitir nada relevante.
-
-Genera el informe en español usando exactamente este formato Markdown:
+        content: `Eres un secretario ejecutivo experto en tomar minutas de reuniones y sesiones de trabajo.
+Recibes resúmenes parciales de una sesión larga dividida en partes.
+Consolida TODO en un informe DETALLADO en español con este formato Markdown.
+Extrae TODA la información concreta: nombres, fechas, números, decisiones, compromisos.
 
 # 📋 Informe de Sesión
 
 ## 📌 Resumen Ejecutivo
-(2-3 oraciones que describan QUÉ ocurrió en esta sesión en su totalidad, el contexto y el resultado principal. Sé específico.)
+(3-4 oraciones describiendo el propósito, contexto y resultado principal)
 
 ## 🗓️ Datos de la Sesión
 | Campo | Valor |
 |-------|-------|
-| Fecha | FECHA_REAL |
-| Duración | DURACION_REAL |
-| Tipo | TIPO_REAL |
-| Participantes | (SOLO quienes hablan directamente, no los mencionados por otros) |
+| Fecha | (fecha de la sesión) |
+| Duración | (duración) |
+| Tipo | (tipo de sesión) |
+| Participantes | (nombres mencionados, o "No identificados") |
 
 ## 🎯 Temas Tratados
-(Consolida todos los temas de todos los fragmentos, sin repetir. Si no hay, escribe "Sin temas identificados".)
-- **[Nombre del tema]**: descripción concreta
+- **Tema 1**: descripción detallada
+- **Tema 2**: descripción detallada
 
 ## ✅ Decisiones y Acuerdos
-(Todas las decisiones de todos los fragmentos. Si no hay, escribe "Sin decisiones registradas".)
-- [Decisión concreta]
+- Decisión 1
+- Decisión 2
 
 ## 📅 Fechas y Plazos Mencionados
-(Todas las fechas y plazos de todos los fragmentos. Si no hay, escribe "Sin fechas mencionadas".)
-- [Fecha o plazo y su contexto]
+- Fecha/plazo 1
+- Fecha/plazo 2
 
 ## ✔️ Tareas Realizadas
-(Todo lo mencionado como completado. Si no hay, escribe "Sin tareas completadas mencionadas".)
-- [Tarea completada]
+- Tarea 1
 
 ## 📋 Compromisos y Pendientes
-(Todos los compromisos de todos los fragmentos con responsable. Si no hay, escribe "Sin compromisos registrados".)
-- [ ] [Tarea pendiente] — Responsable: [nombre o "Sin asignar"]
+- [ ] Tarea — Responsable: (nombre o "Sin asignar")
 
-## 💡 Problemas e Impedimentos
-(Todos los problemas y bloqueos de todos los fragmentos. Si no hay, escribe "Sin problemas reportados".)
-- [Problema y su contexto]
+## 💡 Observaciones y Riesgos
 
 ---
-*Generado automáticamente · Productivity Monitor 2.0*
+*Generado automáticamente a partir de la transcripción de la sesión*
 
-REGLAS OBLIGATORIAS:
-- Usa los datos reales de la sesión en la tabla (Fecha, Duración, Tipo)
-- Consolida sin repetir información, pero no omitas nada importante
-- Nunca inventes datos
-- Si un apartado no tiene información, usa el texto de fallback indicado${contextBlock}`
+REGLAS:
+- Sé EXHAUSTIVO — más detalle es mejor
+- Consolida sin repetir, pero no omitas información importante
+- Si un campo no tiene datos, escribe "No se identificó en la transcripción"
+- No inventes datos`
         },
         {
           role: 'user',
@@ -687,8 +577,7 @@ ${combinedSummaries}`
         }
       ]);
 
-      window._lastAISummary = { text: finalSummary, sessionId };
-      Storage.updateSession(sessionId, { aiSummary: finalSummary, aiSummaryDate: Date.now() });
+      window._lastAISummary = finalSummary;
       renderAISummaryResult(body, session.id, finalSummary);
 
   } catch (err) {
@@ -758,22 +647,13 @@ function renderMarkdown(text) {
 }
 
 // Función para renderizar el resultado del resumen IA
-function renderAISummaryResult(body, sessionId, summary, fromCache = false) {
-  const session = Storage.getSession(sessionId);
-  const summaryDate = session?.aiSummaryDate ? formatDateTime(session.aiSummaryDate) : '';
-  const cacheNote = fromCache && summaryDate
-    ? `<span class="ai-cache-badge" title="Resumen guardado — generado el ${summaryDate}"><i class="fas fa-bolt"></i> Guardado · ${summaryDate}</span>`
-    : '';
-
+function renderAISummaryResult(body, sessionId, summary) {
   body.innerHTML = `
     <div class="ai-summary">
       <div class="ai-result">
         <h4><i class="fas fa-robot"></i> Resumen generado</h4>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-          <div class="ai-model-badge" title="Proveedor: OpenRouter — enruta al mejor modelo gratuito disponible.">
-            <i class="fas fa-microchip"></i> ${AI_PROVIDER} / auto
-          </div>
-          ${cacheNote}
+        <div class="ai-model-badge" title="Proveedor: OpenRouter — enruta al mejor modelo gratuito disponible. Actualizado el ${AI_MODEL_UPDATED}">
+          <i class="fas fa-microchip"></i> ${AI_PROVIDER} / auto
         </div>
         <div class="ai-text">${renderMarkdown(summary)}</div>
       </div>
@@ -784,7 +664,7 @@ function renderAISummaryResult(body, sessionId, summary, fromCache = false) {
         <button class="btn btn-secondary" onclick="downloadAISummary('${sessionId}')">
           <i class="fas fa-download"></i> Descargar
         </button>
-        <button class="btn btn-primary" onclick="generateAISummary('${sessionId}', true)">
+        <button class="btn btn-primary" onclick="generateAISummary('${sessionId}')">
           <i class="fas fa-redo"></i> Regenerar
         </button>
         <button class="btn btn-secondary" onclick="closeModal()">
@@ -797,8 +677,7 @@ function renderAISummaryResult(body, sessionId, summary, fromCache = false) {
 
 // ===== Copiar resumen IA al portapapeles =====
 function copyAISummary() {
-  const entry = window._lastAISummary;
-  const summary = entry?.text || entry; // compatibilidad con formato viejo
+  const summary = window._lastAISummary;
   if (!summary) {
     showToast('⚠️ No hay resumen para copiar', 'error');
     return;
@@ -812,8 +691,7 @@ function copyAISummary() {
 
 // ===== Descargar resumen IA como archivo de texto =====
 function downloadAISummary(sessionId) {
-  const entry = window._lastAISummary;
-  const summary = entry?.text || entry; // compatibilidad con formato viejo
+  const summary = window._lastAISummary;
   if (!summary) {
     showToast('⚠️ No hay resumen para descargar', 'error');
     return;

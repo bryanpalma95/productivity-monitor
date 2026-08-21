@@ -1,4 +1,4 @@
-# Productivity Monitor 2.0
+# Productivity Monitor v3.0.0
 
 Sistema de monitoreo de productividad y transcripción de reuniones — **100% Web, sin instalar nada**.
 
@@ -13,40 +13,11 @@ Abre la página en Chrome o Edge y comienza a monitorear. Sin instalación, sin 
 ## ⚡ Inicio Rápido
 
 1. Abre la página en **Chrome o Edge**
-2. Ve a **Mis Datos** → configura tus API keys (ver sección [API Keys](#-api-keys))
+2. Ve a **Mis Datos** → pega tu [Groq API key](#-configurar-groq-api-key-recomendado) (gratis)
 3. Ve a **Monitoreo** → configura el título de la sesión
 4. Haz clic en **Iniciar Sesión**
 5. Activa 🎤 Micrófono y/o 🔊 Audio del sistema
 6. Al terminar → **Terminar Sesión** → **Resumen IA**
-
----
-
-## 🔑 API Keys
-
-La app usa **dos servicios de IA distintos** para funciones diferentes. Ambos son gratuitos.
-
-### Groq API Key — Transcripción de Audio (Whisper)
-
-Usada para transcribir lo que se habla (micrófono y audio del sistema).
-
-1. Ve a [console.groq.com](https://console.groq.com) → crea cuenta gratuita
-2. Menú lateral → **API Keys** → **Create API Key**
-3. Copia la key (empieza con `gsk_...`)
-4. En la app → **Mis Datos** → pégala en **Groq API Key** → **Guardar**
-
-Sin Groq key: el micrófono usa la Web Speech API del navegador (Chrome/Edge) como fallback. El audio del sistema **requiere** Groq key para transcribirse.
-
-### OpenRouter API Key — Resumen IA
-
-Usada para generar el resumen estructurado de cada sesión (minutas, tareas, pendientes).
-
-1. Ve a [openrouter.ai/keys](https://openrouter.ai/keys) → crea cuenta gratuita (sin tarjeta)
-2. Crea una API key
-3. En la app → **Mis Datos** → pégala en **OpenRouter API Key** → **Guardar**
-
-Sin OpenRouter key: el botón "Resumen IA" no estará disponible. La transcripción sigue funcionando.
-
-> **Resumen:** Groq = transcripción de audio. OpenRouter = resumen con IA. Son servicios y keys distintos.
 
 ---
 
@@ -55,7 +26,7 @@ Sin OpenRouter key: el botón "Resumen IA" no estará disponible. La transcripci
 ### 🎙️ Transcripción de Audio
 - **Micrófono**: transcribe tu voz con Groq Whisper (o Web Speech API como fallback)
 - **Audio del sistema**: captura todo lo que suena en tu PC — ideal para reuniones en Meet, Teams, Zoom
-- **Ambas fuentes simultáneamente** — entradas del sistema marcadas con 🔊 en la transcripción
+- **Ambas fuentes simultáneamente** — entradas del sistema marcadas con � en la transcripción
 - Grabación casi continua: 14s de cada 15s (solo 1s de gap entre chunks)
 - Timestamps precisos en cada entrada
 
@@ -68,10 +39,9 @@ Sin OpenRouter key: el botón "Resumen IA" no estará disponible. La transcripci
 - Muestra la duración en tiempo real (HH:MM:SS) mientras grabas
 - Se restaura automáticamente si recargas la página con una sesión activa
 
-### 🤖 Resumen IA (OpenRouter)
+### 🤖 Resumen IA (Groq)
 - Resumen automático al terminar cada sesión
-- Formato estructurado en Markdown: resumen ejecutivo, temas, decisiones, tareas pendientes
-- Resumen guardado en la sesión — se muestra instantáneamente en aperturas siguientes
+- Formato estructurado: resumen ejecutivo, temas, tareas realizadas, pendientes
 - Funciona con transcripciones largas (divide y consolida en partes)
 - Copiar o descargar el resumen como `.md`
 
@@ -96,6 +66,19 @@ Sin OpenRouter key: el botón "Resumen IA" no estará disponible. La transcripci
 
 ---
 
+## 🔑 Configurar Groq API Key (recomendado)
+
+La transcripción usa **Groq Whisper** — más precisa y confiable que la Web Speech API del navegador. Es **gratuita**.
+
+1. Ve a [console.groq.com](https://console.groq.com) → crea cuenta gratuita (puedes usar Google)
+2. Menú lateral → **API Keys** → **Create API Key**
+3. Copia la key (empieza con `gsk_...`)
+4. En la app → **Mis Datos** → pégala en el campo **Groq API Key** → **Guardar**
+
+Sin Groq key, el micrófono usa la Web Speech API del navegador (Chrome/Edge únicamente). El audio del sistema requiere Groq key para transcribirse.
+
+---
+
 ## 🔊 Capturar Audio del Sistema (reuniones)
 
 Para capturar el audio de una videollamada (Meet, Teams, Zoom, etc.):
@@ -113,7 +96,7 @@ Para capturar el audio de una videollamada (Meet, Teams, Zoom, etc.):
 ## 🏗️ Arquitectura
 
 ```
-productivity-monitor-2.0/
+productivity-monitor/
 ├── index.html              # App principal — carga los partials y módulos JS
 ├── sw.js                   # Service Worker PWA (network-first para JS/HTML)
 ├── manifest.json           # Manifiesto PWA
@@ -124,10 +107,10 @@ productivity-monitor-2.0/
 │   └── standalone.css      # Estilos de vistas específicas
 ├── js/
 │   ├── core.js             # Estado global (App), Storage, utilidades
-│   ├── monitor.js          # Captura de pantalla, audio, transcripción (Groq Whisper)
+│   ├── monitor.js          # Captura de pantalla, audio, transcripción
 │   ├── sessions.js         # Gestión de sesiones, cronómetro, recuperación
-│   ├── dashboard.js        # Vista Dashboard con métricas y gráficos
-│   ├── reports.js          # Reportes, exportación, resumen IA (OpenRouter)
+│   ├── dashboard.js        # Vista Dashboard con métricas
+│   ├── reports.js          # Reportes, exportación, resumen IA (Groq)
 │   ├── init.js             # Inicialización, PWA, atajos de teclado
 │   ├── app.js              # Carga de partials, navegación
 │   ├── firebase-config.js  # Configuración de Firebase
@@ -139,7 +122,7 @@ productivity-monitor-2.0/
     ├── sessions.html       # Vista Sesiones
     ├── reports.html        # Vista Reportes
     ├── search.html         # Vista Buscar
-    ├── data.html           # Vista Mis Datos (API keys, backup, cloud sync)
+    ├── data.html           # Vista Mis Datos (Groq key, backup, cloud sync)
     └── footer.html         # Footer, toast, modales, nav inferior
 ```
 
@@ -151,11 +134,11 @@ Requiere un servidor HTTP local — no funciona abriendo `index.html` como archi
 
 ```bash
 # Python
-cd productivity-monitor-2.0
+cd productivity-monitor
 python -m http.server 8080
 
 # Node.js
-npx serve productivity-monitor-2.0
+npx serve productivity-monitor
 ```
 
 O usa la extensión **Live Server** de VS Code: clic derecho sobre `index.html` → **Open with Live Server**.
@@ -180,22 +163,29 @@ Esto garantiza que cada usuario solo puede leer/escribir sus propios datos.
 - **Chrome o Edge** (recomendado) — Firefox tiene soporte limitado para `getDisplayMedia` con audio
 - Permisos de micrófono habilitados en el navegador
 - HTTPS o localhost (requerido para APIs de medios)
-- Groq API key para transcripción de audio del sistema
-- OpenRouter API key para resumen IA
+- Groq API key para transcripción de audio del sistema y resumen IA
 
 ---
 
 ## 📝 Changelog
 
-### v2.0.0 (2026-08-19)
-- **Resumen IA guardado en sesión** — se genera una sola vez, se muestra instantáneamente en aperturas siguientes
-- **Migración a OpenRouter** para resumen IA (reemplaza OmniRoute caído)
-- **Badge ⚡** en sesiones con resumen ya generado
-- **Botón Resumen IA deshabilitado** cuando la sesión no tiene transcripciones
-- **Debounce 220ms** en búsqueda y filtros — evita lecturas innecesarias de localStorage
-- **Scroll interno en modal** — resúmenes largos no desbordan la pantalla
-- **`max_tokens: 4096`** — el resumen ya no se corta a la mitad
-- `window._lastAISummary` scoped por sesión — evita mezclar resúmenes entre sesiones
+### v3.0.0 (2026-08-19)
+- **Transcripción con Groq Whisper** — reemplaza Web Speech API para mayor confiabilidad en HTTPS
+- **Captura simultánea** de micrófono y audio del sistema via `getDisplayMedia`
+- **Grabación casi continua**: 14s de cada 15s (1s de gap vs 5s anterior)
+- **Timestamps precisos** en cada entrada de transcripción
+- **Identificación visual** de entradas del sistema (borde azul 🔊)
+- **Cronómetro de sesión** en tiempo real (HH:MM:SS)
+- **Resumen IA con Groq** (`llama-3.3-70b-versatile`) — reemplaza OmniRoute caído
+- **Guía visual** para captura de audio del sistema con feedback de éxito/error
+- Service Worker con estrategia network-first para JS/HTML — siempre código fresco
+- Auto-desregistro del SW al cargar para forzar actualización inmediata
 
-### v1.x (base)
-- Sistema inicial: captura de pantalla, Groq Whisper (transcripción), sesiones, reportes, Firebase sync, cronómetro
+### v2.x (2026-08)
+- Pipeline inicial de transcripción con Groq Whisper
+- Captura de audio del sistema via `getDisplayMedia`
+- Corrección de bugs de MediaRecorder zombie
+- Manejo de `AudioContext` suspendido en HTTPS
+
+### v2.1.0 (base)
+- Sistema inicial: captura de pantalla, Web Speech API, sesiones, reportes, Firebase sync

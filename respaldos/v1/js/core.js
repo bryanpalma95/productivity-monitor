@@ -1,9 +1,7 @@
-﻿/* ============================================================
-   Productivity Monitor 2.0 - Core Module v2.0.0
+/* ============================================================
+   Productivity Monitor - Core Module v3.0.0
    Estado global, almacenamiento y utilidades
    ============================================================ */
-
-const APP_VERSION = '2.1.4';
 
 // ===== Estado Global =====
 const App = {
@@ -27,8 +25,8 @@ const App = {
 
 // ===== Almacenamiento Local =====
 const Storage = {
-  KEY: 'productivity_monitor_2_data',
-  META_KEY: 'productivity_monitor_2_meta',
+  KEY: 'productivity_monitor_data',
+  META_KEY: 'productivity_monitor_meta',
   MAX_SCREENSHOTS_PER_SESSION: 50,
 
   load() {
@@ -46,7 +44,7 @@ const Storage = {
       localStorage.setItem(this.KEY, JSON.stringify(data));
     } catch (e) {
       console.error('Error guardando datos:', e);
-      showToast('âš ï¸ Error al guardar datos. El almacenamiento estÃ¡ lleno.', 'error');
+      showToast('⚠️ Error al guardar datos. El almacenamiento está lleno.', 'error');
     }
   },
 
@@ -90,30 +88,10 @@ const Storage = {
   clearAll() {
     localStorage.removeItem(this.KEY);
     localStorage.removeItem(this.META_KEY);
-    localStorage.removeItem('project_context');
     this.syncToCloud();
   },
 
-  // ===== Contexto del Proyecto para Resumen IA =====
-  PROJECT_CONTEXT_KEY: 'project_context',
-
-  getProjectContext() {
-    return localStorage.getItem(this.PROJECT_CONTEXT_KEY) || '';
-  },
-
-  saveProjectContext(text) {
-    if (text && text.trim()) {
-      localStorage.setItem(this.PROJECT_CONTEXT_KEY, text.trim());
-    } else {
-      localStorage.removeItem(this.PROJECT_CONTEXT_KEY);
-    }
-  },
-
-  clearProjectContext() {
-    localStorage.removeItem(this.PROJECT_CONTEXT_KEY);
-  },
-
-  // Sincronizar con la nube si el usuario estÃ¡ autenticado
+  // Sincronizar con la nube si el usuario está autenticado
   syncToCloud() {
     if (typeof isLoggedIn === 'function' && isLoggedIn() && typeof pushToCloud === 'function') {
       pushToCloud();
@@ -121,7 +99,7 @@ const Storage = {
   },
 
 
-  // MÃ©tricas de almacenamiento
+  // Métricas de almacenamiento
   getUsage() {
     let total = 0;
     for (let i = 0; i < localStorage.length; i++) {
@@ -142,8 +120,8 @@ const Storage = {
     return Math.min(100, Math.round((usage / quota) * 100));
   },
 
-  // CompresiÃ³n de capturas
-  compressScreenshot(dataUrl, maxWidth = 1280) {
+  // Compresión de capturas
+  compressScreenshot(dataUrl, maxWidth = 640) {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -153,7 +131,7 @@ const Storage = {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.75));
+        resolve(canvas.toDataURL('image/jpeg', 0.4));
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
@@ -219,7 +197,7 @@ function showSystemNotification(title, body) {
   }
 }
 
-// ===== NavegaciÃ³n =====
+// ===== Navegación =====
 function switchView(viewName) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -244,20 +222,9 @@ function switchView(viewName) {
   if (viewName === 'data') {
     updateStorageIndicator();
     if (typeof initGroqKeyUI === 'function') initGroqKeyUI();
-    if (typeof initProjectContextUI === 'function') initProjectContextUI();
   }
 
-  // Persistir vista en el hash para sobrevivir recargas
-  history.replaceState(null, '', '#' + viewName);
-
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// Restaura la vista desde el hash de la URL (si existe)
-function restoreViewFromHash() {
-  const valid = ['dashboard', 'monitor', 'sessions', 'reports', 'search', 'data'];
-  const hash = window.location.hash.replace('#', '');
-  switchView(valid.includes(hash) ? hash : 'dashboard');
 }
 
 function closeSidebar() {
@@ -271,7 +238,7 @@ function closeSidebar() {
 function getTypeLabel(type) {
   const labels = {
     work: 'Trabajo',
-    meeting: 'ReuniÃ³n',
+    meeting: 'Reunión',
     individual: 'Individual',
     study: 'Estudio'
   };

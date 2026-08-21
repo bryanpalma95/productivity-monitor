@@ -112,11 +112,7 @@ function setupGlobalSearch() {
   const searchInput = document.getElementById('globalSearch');
   if (!searchInput) return;
 
-  let debounceTimer;
-  searchInput.addEventListener('input', () => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(globalSearch, 220);
-  });
+  searchInput.addEventListener('input', globalSearch);
   searchInput.addEventListener('blur', hideSearchResults);
 }
 

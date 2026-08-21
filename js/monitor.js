@@ -1,5 +1,5 @@
 /* ============================================================
-   Productivity Monitor - Monitor Module v3.0.0
+   Productivity Monitor 2.0 - Monitor Module
    Transcripción: Groq Whisper (si hay API key) → Web Speech API (fallback)
    ============================================================ */
 
@@ -133,6 +133,89 @@ let _speechRetryCount = 0;
 let _speechRetryTimer = null;
 const _MAX_SPEECH_RETRIES = 10;
 
+// ===== Frame Differencing — captura por cambio de pantalla =====
+// Analiza el video cada 2s a baja resolución y captura si hay un cambio visual significativo
+// (ej: cambio de diapositiva, cambio de ventana, scroll largo).
+// Coexiste con el intervalo periódico de 30s sin conflicto.
+
+const DIFF_SAMPLE_INTERVAL = 2000;    // analizar cada 2s
+const DIFF_THRESHOLD = 0.08;           // 8% de píxeles cambiados = captura
+const DIFF_COOLDOWN = 5000;            // mínimo 5s entre capturas por diferencia
+const DIFF_CANVAS_WIDTH = 160;         // resolución del canvas de análisis (baja para performance)
+
+let _prevFrameData = null;
+let _lastDiffCapture = 0;
+let _diffAnalysisInterval = null;
+
+function startDiffAnalysis() {
+  stopDiffAnalysis();
+  _prevFrameData = null;
+
+  _diffAnalysisInterval = setInterval(async () => {
+    if (!App.screenStream || !App.currentSession) return;
+
+    const video = document.querySelector('#screenPreview video');
+    if (!video || video.videoWidth === 0) return;
+
+    // Canvas pequeño solo para análisis — no para guardar
+    const w = DIFF_CANVAS_WIDTH;
+    const h = Math.round(video.videoHeight * w / video.videoWidth);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+
+    const currentData = ctx.getImageData(0, 0, w, h).data;
+
+    if (_prevFrameData && _prevFrameData.length === currentData.length) {
+      const diffRatio = _calculateFrameDiff(_prevFrameData, currentData);
+      const now = Date.now();
+
+      if (diffRatio > DIFF_THRESHOLD && (now - _lastDiffCapture) > DIFF_COOLDOWN) {
+        _lastDiffCapture = now;
+        console.log(`[Diff] Cambio detectado (${(diffRatio * 100).toFixed(1)}%) — capturando`);
+        captureScreenshot();
+      }
+    }
+
+    _prevFrameData = currentData;
+  }, DIFF_SAMPLE_INTERVAL);
+}
+
+function stopDiffAnalysis() {
+  clearInterval(_diffAnalysisInterval);
+  _diffAnalysisInterval = null;
+  _prevFrameData = null;
+}
+
+// Compara solo la zona central (70% ancho, 80% alto) del frame para ignorar
+// paneles laterales de participantes en Teams/Meet que cambian constantemente.
+function _calculateFrameDiff(prev, curr) {
+  const w = DIFF_CANVAS_WIDTH;
+  const totalPixels = prev.length / 4;
+  const h = Math.round(totalPixels / w);
+
+  // Zona central: 15% margen horizontal, 10% margen vertical
+  const xStart = Math.round(w * 0.15);
+  const xEnd   = Math.round(w * 0.85);
+  const yStart = Math.round(h * 0.10);
+  const yEnd   = Math.round(h * 0.90);
+
+  let diffPixels = 0;
+  let analyzed = 0;
+
+  for (let y = yStart; y < yEnd; y++) {
+    for (let x = xStart; x < xEnd; x++) {
+      const i = (y * w + x) * 4;
+      if (Math.abs(prev[i] - curr[i]) > 25) diffPixels++;
+      analyzed++;
+    }
+  }
+
+  return analyzed > 0 ? diffPixels / analyzed : 0;
+}
+
 // ===== Captura de Pantalla =====
 async function startScreenCapture() {
   if (App.privacyMode) {
@@ -202,6 +285,9 @@ function stopScreenCapture() {
   clearInterval(App.screenshotInterval);
   App.screenshotInterval = null;
 
+  // Detener frame differencing
+  stopDiffAnalysis();
+
   const preview = document.getElementById('screenPreview');
   if (preview) {
     preview.innerHTML = `
@@ -223,11 +309,18 @@ function stopScreenCapture() {
 
 function startScreenshotInterval() {
   clearInterval(App.screenshotInterval);
+
+  // Captura inmediata al iniciar — no esperar 30s
+  captureScreenshot();
+
   App.screenshotInterval = setInterval(() => {
     if (App.currentSession && App.screenStream) {
       captureScreenshot();
     }
   }, 30000);
+
+  // Activar frame differencing
+  startDiffAnalysis();
 }
 
 async function captureScreenshot() {
@@ -242,23 +335,43 @@ async function captureScreenshot() {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0);
 
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+  // Captura en resolución nativa — la compresión la maneja compressScreenshot
+  const dataUrl = canvas.toDataURL('image/png');
   const compressed = await Storage.compressScreenshot(dataUrl);
 
+  const screenshotId = generateId();
+  const sessionId = App.currentSession.id;
+
   const screenshot = {
-    id: generateId(),
-    timestamp: Date.now(),
-    dataUrl: compressed
+    id: screenshotId,
+    timestamp: Date.now()
   };
 
-  const session = Storage.getSession(App.currentSession.id);
+  // Si el usuario está logueado, subir a Firebase Storage
+  // y guardar solo la URL (no el base64) para liberar localStorage
+  if (typeof isLoggedIn === 'function' && isLoggedIn() &&
+      typeof uploadScreenshot === 'function') {
+    const storageUrl = await uploadScreenshot(sessionId, screenshotId, compressed);
+    if (storageUrl) {
+      screenshot.storageUrl = storageUrl;
+      // No guardar dataUrl — la imagen vive en Firebase Storage
+    } else {
+      // Upload falló → fallback a localStorage
+      screenshot.dataUrl = compressed;
+    }
+  } else {
+    // Sin cuenta → guardar localmente como siempre
+    screenshot.dataUrl = compressed;
+  }
+
+  const session = Storage.getSession(sessionId);
   if (session) {
     const screenshots = session.screenshots || [];
     if (screenshots.length >= Storage.MAX_SCREENSHOTS_PER_SESSION) {
       screenshots.shift();
     }
     screenshots.push(screenshot);
-    Storage.updateSession(session.id, { screenshots });
+    Storage.updateSession(sessionId, { screenshots });
   }
 }
 
