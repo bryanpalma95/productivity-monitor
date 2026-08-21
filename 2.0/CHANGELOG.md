@@ -1,4 +1,11 @@
-﻿## [2.1.1] - 2026-08-20
+﻿## [2.1.2] - 2026-08-20
+
+### Fixed
+- **Participantes**: prompt ahora distingue entre quienes HABLAN y quienes son MENCIONADOS.
+  Solo los hablantes directos van en la tabla de Datos de la Sesion.
+- **Errores foneticos**: instruccion explicita para corregir palabras que no tienen sentido
+  en contexto pero son fonetica mente similares a terminos tecnicos conocidos.
+## [2.1.1] - 2026-08-20
 
 ### Added
 - **Contexto del Proyecto** — nueva seccion en Mis Datos donde se configura informacion
@@ -174,6 +181,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 

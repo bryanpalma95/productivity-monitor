@@ -490,7 +490,7 @@ Genera un informe COMPLETO en español usando exactamente este formato Markdown.
 | Fecha | FECHA_REAL |
 | Duración | DURACION_REAL |
 | Tipo | TIPO_REAL |
-| Participantes | (lista los nombres que aparezcan en la transcripción, separados por coma) |
+| Participantes | (lista SOLO los nombres de quienes HABLAN directamente en la reunión, no los que son mencionados por otros) |
 
 ## 🎯 Temas Tratados
 (Lista cada tema con una descripción concreta de qué se discutió. Si no hay temas identificables, escribe "Sin temas identificados".)
@@ -524,7 +524,9 @@ REGLAS OBLIGATORIAS:
 - Extrae nombres propios, proyectos, sistemas y datos concretos que aparezcan en la transcripción
 - Nunca inventes información que no esté en la transcripción
 - Si un apartado no tiene información real, usa el texto de fallback indicado (no lo omitas)
-- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]${contextBlock}`
+- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]
+- PARTICIPANTES: lista solo a quienes hablan directamente (su voz aparece en la transcripción). Las personas mencionadas por otros van en la sección de Temas o Compromisos, no en Participantes.
+- ERRORES FONÉTICOS: la transcripción viene de speech-to-text y puede contener errores. Si una palabra no tiene sentido en el contexto pero fonéticamente se parece a un término técnico conocido, usa el término correcto. Si no puedes inferirlo, déjalo como está sin inventar.${contextBlock}`
         },
         {
           role: 'user',
@@ -628,7 +630,7 @@ Genera el informe en español usando exactamente este formato Markdown:
 | Fecha | FECHA_REAL |
 | Duración | DURACION_REAL |
 | Tipo | TIPO_REAL |
-| Participantes | (todos los nombres mencionados en los resúmenes, separados por coma) |
+| Participantes | (SOLO quienes hablan directamente, no los mencionados por otros) |
 
 ## 🎯 Temas Tratados
 (Consolida todos los temas de todos los fragmentos, sin repetir. Si no hay, escribe "Sin temas identificados".)
