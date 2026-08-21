@@ -1,4 +1,16 @@
-﻿## [2.0.9] - 2026-08-20
+﻿## [2.1.0] - 2026-08-20
+
+### Changed
+- **Prompts de resumen IA mejorados** — los tres prompts (sesion corta, chunks parciales,
+  consolidacion final) fueron reescritos con:
+  - Contexto explicito sobre [sonido] (audio sistema) vs micrófono
+  - Fallbacks obligatorios por seccion (no mas secciones vacias)
+  - Tabla de datos de sesion con valores reales (Fecha, Duracion, Tipo)
+  - Seccion "Problemas e Impedimentos" en vez de "Observaciones y Riesgos"
+  - Limite de chunks parciales subido de 150 a 400 palabras
+  - Instruccion de distinguir participantes [sistema] vs [microfono]
+  - Reglas obligatorias mas especificas para reducir alucinaciones
+## [2.0.9] - 2026-08-20
 
 ### Changed
 - Migracion a proyecto Firebase "My First Project" (steel-archery-417219) con Storage habilitado.
@@ -144,6 +156,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 

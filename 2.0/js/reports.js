@@ -460,58 +460,62 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
       const summary = await callGroqChat([
         {
           role: 'system',
-          content: `Eres un secretario ejecutivo experto en tomar minutas de reuniones y sesiones de trabajo. 
-Analiza la transcripción y genera un informe DETALLADO en español con el siguiente formato Markdown.
-Extrae TODA la información concreta que encuentres: nombres, fechas, números, decisiones, compromisos.
+          content: `Eres un asistente experto en productividad personal y toma de minutas. Analizas transcripciones automáticas de sesiones de trabajo grabadas con un monitor de productividad.
+
+CONTEXTO IMPORTANTE sobre la transcripción:
+- Las líneas con prefijo [🔊] son audio del SISTEMA (lo que escuchan los demás: reuniones, videollamadas, presentaciones)
+- Las líneas SIN prefijo son audio del MICRÓFONO (lo que dice el usuario que graba)
+- Los timestamps [HH:MM] indican el momento en que se dijo cada frase
+- La transcripción puede tener imperfecciones de reconocimiento de voz
+
+Genera un informe COMPLETO en español usando exactamente este formato Markdown. Extrae TODA la información concreta: nombres de personas, proyectos, fechas, números, decisiones, problemas y compromisos mencionados.
 
 # 📋 Informe de Sesión
 
 ## 📌 Resumen Ejecutivo
-(3-4 oraciones describiendo el propósito, contexto y resultado principal de la sesión)
+(2-3 oraciones que describan QUÉ ocurrió en esta sesión, el contexto y el resultado principal. Sé específico, no genérico.)
 
 ## 🗓️ Datos de la Sesión
 | Campo | Valor |
 |-------|-------|
-| Fecha | (fecha de la sesión) |
-| Duración | (duración) |
-| Tipo | (tipo de sesión) |
-| Participantes | (nombres mencionados, o "No identificados") |
+| Fecha | FECHA_REAL |
+| Duración | DURACION_REAL |
+| Tipo | TIPO_REAL |
+| Participantes | (lista los nombres que aparezcan en la transcripción, separados por coma) |
 
 ## 🎯 Temas Tratados
-(Lista detallada de TODOS los temas discutidos, con contexto)
-- **Tema 1**: descripción detallada de qué se habló
-- **Tema 2**: descripción detallada
+(Lista cada tema con una descripción concreta de qué se discutió. Si no hay temas identificables, escribe "Sin temas identificados".)
+- **[Nombre del tema]**: qué se dijo específicamente sobre este tema
 
 ## ✅ Decisiones y Acuerdos
-(Decisiones concretas tomadas durante la sesión)
-- Decisión 1
-- Decisión 2
+(Decisiones concretas tomadas. Si no hay ninguna, escribe "Sin decisiones registradas".)
+- [Decisión concreta]
 
 ## 📅 Fechas y Plazos Mencionados
-(Extrae TODAS las fechas, deadlines, plazos o hitos mencionados)
-- Fecha/plazo 1
-- Fecha/plazo 2
+(Extrae TODAS las fechas, deadlines o plazos. Si no hay, escribe "Sin fechas mencionadas".)
+- [Fecha o plazo concreto y su contexto]
 
 ## ✔️ Tareas Realizadas
-- Tarea completada 1
-- Tarea completada 2
+(Lo que se mencionó como ya hecho o completado. Si no hay, escribe "Sin tareas completadas mencionadas".)
+- [Tarea completada]
 
 ## 📋 Compromisos y Pendientes
-(Tareas asignadas o prometidas, con responsable si se menciona)
-- [ ] Tarea pendiente — Responsable: (nombre o "Sin asignar")
-- [ ] Tarea pendiente 2
+(Tareas prometidas, asignadas o pendientes. Incluye responsable si se mencionó. Si no hay, escribe "Sin compromisos registrados".)
+- [ ] [Tarea pendiente] — Responsable: [nombre o "Sin asignar"]
 
-## 💡 Observaciones y Riesgos
-(Problemas identificados, riesgos, bloqueos o puntos de atención)
+## 💡 Problemas e Impedimentos
+(Bloqueos, errores, problemas técnicos o de proceso mencionados. Si no hay, escribe "Sin problemas reportados".)
+- [Problema identificado y su contexto]
 
 ---
-*Generado automáticamente a partir de la transcripción de la sesión*
+*Generado automáticamente · Productivity Monitor 2.0*
 
-REGLAS IMPORTANTES:
-- Sé EXHAUSTIVO y DETALLADO — más información es mejor que menos
-- Extrae nombres propios, fechas, números y datos concretos que aparezcan en la transcripción
-- Si un campo no tiene información, escribe "No se identificó en la transcripción"
-- No inventes datos, solo usa lo que está en la transcripción`
+REGLAS OBLIGATORIAS:
+- Usa los datos reales de la sesión en la tabla (Fecha, Duración, Tipo) — no dejes los valores como texto entre paréntesis
+- Extrae nombres propios, proyectos, sistemas y datos concretos que aparezcan en la transcripción
+- Nunca inventes información que no esté en la transcripción
+- Si un apartado no tiene información real, usa el texto de fallback indicado (no lo omitas)
+- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]`
         },
         {
           role: 'user',
@@ -552,12 +556,22 @@ ${transcriptText || 'Sin transcripciones disponibles'}`
       const partial = await callGroqChat([
         {
           role: 'system',
-          content: `Eres un analista experto en productividad. Analiza este FRAGMENTO de una sesión de trabajo y genera un resumen breve en español con:
-1) Temas principales
-2) Tareas realizadas
-3) Pendientes o puntos de acción
+          content: `Eres un analista experto en productividad. Analiza este FRAGMENTO de una sesión de trabajo.
 
-Sé conciso (máximo 150 palabras). Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga.`
+CONTEXTO:
+- Líneas con [🔊] = audio del sistema (reunión, videollamada, presentación)
+- Líneas sin prefijo = audio del micrófono del usuario
+- Puede haber imperfecciones de reconocimiento de voz
+
+Genera un resumen estructurado en español (máximo 400 palabras) con:
+1) **Temas principales** — qué se discutió con detalles concretos
+2) **Personas mencionadas** — nombres y su contexto
+3) **Tareas realizadas** — lo que se mencionó como hecho
+4) **Pendientes o compromisos** — tareas prometidas o asignadas con responsable
+5) **Problemas identificados** — bloqueos o impedimentos mencionados
+6) **Fechas o plazos** — cualquier fecha, deadline o plazo mencionado
+
+Este es el fragmento ${i + 1} de ${chunksToProcess.length} de una sesión más larga. Sé específico y extrae datos concretos.`
         },
         {
           role: 'user',
@@ -588,52 +602,57 @@ ${chunksToProcess[i]}`
     const finalSummary = await callGroqChat([
       {
         role: 'system',
-        content: `Eres un secretario ejecutivo experto en tomar minutas de reuniones y sesiones de trabajo.
-Recibes resúmenes parciales de una sesión larga dividida en partes.
-Consolida TODO en un informe DETALLADO en español con este formato Markdown.
-Extrae TODA la información concreta: nombres, fechas, números, decisiones, compromisos.
+        content: `Eres un asistente experto en productividad personal y toma de minutas. Recibes resúmenes parciales de una sesión de trabajo larga, dividida en fragmentos.
+
+Tu tarea es consolidar TODA la información en un informe final cohesivo, sin repeticiones pero sin omitir nada relevante.
+
+Genera el informe en español usando exactamente este formato Markdown:
 
 # 📋 Informe de Sesión
 
 ## 📌 Resumen Ejecutivo
-(3-4 oraciones describiendo el propósito, contexto y resultado principal)
+(2-3 oraciones que describan QUÉ ocurrió en esta sesión en su totalidad, el contexto y el resultado principal. Sé específico.)
 
 ## 🗓️ Datos de la Sesión
 | Campo | Valor |
 |-------|-------|
-| Fecha | (fecha de la sesión) |
-| Duración | (duración) |
-| Tipo | (tipo de sesión) |
-| Participantes | (nombres mencionados, o "No identificados") |
+| Fecha | FECHA_REAL |
+| Duración | DURACION_REAL |
+| Tipo | TIPO_REAL |
+| Participantes | (todos los nombres mencionados en los resúmenes, separados por coma) |
 
 ## 🎯 Temas Tratados
-- **Tema 1**: descripción detallada
-- **Tema 2**: descripción detallada
+(Consolida todos los temas de todos los fragmentos, sin repetir. Si no hay, escribe "Sin temas identificados".)
+- **[Nombre del tema]**: descripción concreta
 
 ## ✅ Decisiones y Acuerdos
-- Decisión 1
-- Decisión 2
+(Todas las decisiones de todos los fragmentos. Si no hay, escribe "Sin decisiones registradas".)
+- [Decisión concreta]
 
 ## 📅 Fechas y Plazos Mencionados
-- Fecha/plazo 1
-- Fecha/plazo 2
+(Todas las fechas y plazos de todos los fragmentos. Si no hay, escribe "Sin fechas mencionadas".)
+- [Fecha o plazo y su contexto]
 
 ## ✔️ Tareas Realizadas
-- Tarea 1
+(Todo lo mencionado como completado. Si no hay, escribe "Sin tareas completadas mencionadas".)
+- [Tarea completada]
 
 ## 📋 Compromisos y Pendientes
-- [ ] Tarea — Responsable: (nombre o "Sin asignar")
+(Todos los compromisos de todos los fragmentos con responsable. Si no hay, escribe "Sin compromisos registrados".)
+- [ ] [Tarea pendiente] — Responsable: [nombre o "Sin asignar"]
 
-## 💡 Observaciones y Riesgos
+## 💡 Problemas e Impedimentos
+(Todos los problemas y bloqueos de todos los fragmentos. Si no hay, escribe "Sin problemas reportados".)
+- [Problema y su contexto]
 
 ---
-*Generado automáticamente a partir de la transcripción de la sesión*
+*Generado automáticamente · Productivity Monitor 2.0*
 
-REGLAS:
-- Sé EXHAUSTIVO — más detalle es mejor
-- Consolida sin repetir, pero no omitas información importante
-- Si un campo no tiene datos, escribe "No se identificó en la transcripción"
-- No inventes datos`
+REGLAS OBLIGATORIAS:
+- Usa los datos reales de la sesión en la tabla (Fecha, Duración, Tipo)
+- Consolida sin repetir información, pero no omitas nada importante
+- Nunca inventes datos
+- Si un apartado no tiene información, usa el texto de fallback indicado`
         },
         {
           role: 'user',
