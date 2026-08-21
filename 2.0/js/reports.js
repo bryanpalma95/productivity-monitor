@@ -311,7 +311,7 @@ const AI_MAX_CHUNKS = 20;
 // Usamos un modelo específico con contexto largo (128K) en vez de 'auto'
 // para evitar que rutee a modelos con contexto corto que cortan el resumen.
 const AI_PROVIDER = 'openrouter';
-const AI_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
+const AI_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const AI_MODEL_UPDATED = '2026-08-20';
 
