@@ -308,12 +308,12 @@ const AI_CHUNK_SIZE = 8000;  // aumentado — OpenRouter soporta contextos grand
 const AI_MAX_CHUNKS = 20;
 
 // Proveedor IA: OpenRouter — un endpoint estable con 20+ modelos gratuitos
-// El modelo 'openrouter/auto' enruta automáticamente al mejor modelo gratuito disponible
-// Docs: https://openrouter.ai/docs
+// Usamos un modelo específico con contexto largo (128K) en vez de 'auto'
+// para evitar que rutee a modelos con contexto corto que cortan el resumen.
 const AI_PROVIDER = 'openrouter';
-const AI_MODEL = 'openrouter/auto';
+const AI_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const AI_MODEL_UPDATED = '2026-08-19'; // Migrado desde Groq (modelos deprecados frecuentemente)
+const AI_MODEL_UPDATED = '2026-08-20';
 
 // Llama a OpenRouter para generar texto
 // Requiere una API key de OpenRouter (gratuita, sin tarjeta): https://openrouter.ai/keys
@@ -335,7 +335,7 @@ async function callGroqChat(messages) {
       model: AI_MODEL,
       messages,
       temperature: 0.3,
-      max_tokens: 4096
+      max_tokens: 8192
     })
   });
 
@@ -545,7 +545,15 @@ ${transcriptText || 'Sin transcripciones disponibles'}`
 
       window._lastAISummary = { text: summary, sessionId };
       Storage.updateSession(sessionId, { aiSummary: summary, aiSummaryDate: Date.now() });
-      renderAISummaryResult(body, session.id, summary);
+
+      // Detectar si el resumen se cortó (no tiene el footer esperado)
+      const isTruncatedSummary = !summary.includes('Generado automáticamente') && !summary.includes('Productivity Monitor');
+      if (isTruncatedSummary) {
+        const truncNote = '\n\n---\n⚠️ *El resumen puede estar incompleto. El modelo alcanzó su límite de tokens. Prueba con una sesión más corta o regenera.*';
+        window._lastAISummary.text = summary + truncNote;
+      }
+
+      renderAISummaryResult(body, session.id, window._lastAISummary.text);
       return;
     }
 
