@@ -304,50 +304,70 @@ function exportJSON() {
 }
 
 // ===== Resumen IA =====
-const AI_CHUNK_SIZE = 8000;  // aumentado — OpenRouter soporta contextos grandes
+const AI_CHUNK_SIZE = 8000;
 const AI_MAX_CHUNKS = 20;
 
-// Proveedor IA: OpenRouter — un endpoint estable con 20+ modelos gratuitos
-// Usamos un modelo específico con contexto largo (128K) en vez de 'auto'
-// para evitar que rutee a modelos con contexto corto que cortan el resumen.
-const AI_PROVIDER = 'openrouter';
-const AI_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
-const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const AI_MODEL_UPDATED = '2026-08-20';
+// Función central de llamada a IA — usa la config del proveedor seleccionado por el usuario.
+// Compatible con OpenAI, OpenRouter, Groq, Mistral (formato OpenAI) y Anthropic (formato propio).
+async function callAI(messages) {
+  const config = Storage.getAIProviderConfig();
+  const providerDef = Storage.AI_PROVIDERS[config.provider] || Storage.AI_PROVIDERS.openrouter;
+  const apiKey = config.apiKey;
+  const model = config.model || providerDef.defaultModel;
+  const url = config.provider === 'custom' ? config.customUrl : providerDef.url;
 
-// Llama a OpenRouter para generar texto
-// Requiere una API key de OpenRouter (gratuita, sin tarjeta): https://openrouter.ai/keys
-async function callGroqChat(messages) {
-  const apiKey = (typeof getOpenRouterApiKey === 'function') ? getOpenRouterApiKey()
-    : localStorage.getItem('openrouter_api_key') || '';
+  if (!apiKey) throw new Error('No hay API key configurada. Ve a Mis Datos → Resumen IA — Proveedor y agrega tu key.');
+  if (!url) throw new Error('URL del proveedor no configurada.');
 
-  if (!apiKey) throw new Error('No hay API key de OpenRouter configurada. Ve a Mis Datos → Resumen IA y agrega tu key (gratis en openrouter.ai/keys).');
+  const headers = providerDef.headers(apiKey);
 
-  const res = await fetch(AI_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': window.location.origin,
-      'X-Title': 'Productivity Monitor'
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
+  let body, parseResponse;
+
+  if (providerDef.format === 'anthropic') {
+    // Anthropic tiene formato diferente: system va separado, no en messages
+    const systemMsg = messages.find(m => m.role === 'system');
+    const userMsgs = messages.filter(m => m.role !== 'system');
+
+    body = JSON.stringify({
+      model,
+      max_tokens: 8192,
+      ...(systemMsg ? { system: systemMsg.content } : {}),
+      messages: userMsgs
+    });
+
+    parseResponse = (data) => {
+      if (data.content && data.content[0]) return data.content[0].text;
+      return 'No se pudo generar el resumen.';
+    };
+  } else {
+    // Formato OpenAI-compatible (OpenRouter, OpenAI, Groq, Mistral, Custom)
+    body = JSON.stringify({
+      model,
       messages,
       temperature: 0.3,
       max_tokens: 8192
-    })
-  });
+    });
 
-  if (res.status === 401) throw new Error('API key inválida. Verifica en Mis Datos (openrouter.ai/keys).');
+    parseResponse = (data) => {
+      return data.choices?.[0]?.message?.content || 'No se pudo generar el resumen.';
+    };
+  }
+
+  const res = await fetch(url, { method: 'POST', headers, body });
+
+  if (res.status === 401) throw new Error('API key inválida. Verifica en Mis Datos → Proveedor IA.');
+  if (res.status === 404) throw new Error('Modelo no disponible. Verifica el modelo seleccionado en Mis Datos.');
   if (!res.ok) {
     const err = await res.text();
-    throw new Error('Error OpenRouter: ' + res.status + ' — ' + err.slice(0, 200));
+    throw new Error(`Error ${config.provider}: ${res.status} — ${err.slice(0, 200)}`);
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || 'No se pudo generar el resumen.';
+  return parseResponse(data);
 }
+
+// Alias para retrocompatibilidad (funciones que aún llaman callGroqChat)
+function callGroqChat(messages) { return callAI(messages); }
 
 // Elimina entradas de ruido antes de enviar a la IA:
 //   - Textos muy cortos sin contenido real (< 3 chars)

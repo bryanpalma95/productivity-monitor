@@ -3,7 +3,7 @@
    Estado global, almacenamiento y utilidades
    ============================================================ */
 
-const APP_VERSION = '2.1.4';
+const APP_VERSION = '2.2.0';
 
 // ===== Estado Global =====
 const App = {
@@ -111,6 +111,123 @@ const Storage = {
 
   clearProjectContext() {
     localStorage.removeItem(this.PROJECT_CONTEXT_KEY);
+  },
+
+  // ===== Proveedor IA Configurable =====
+  AI_PROVIDER_KEY: 'ai_provider_config',
+
+  AI_PROVIDERS: {
+    openrouter: {
+      name: 'OpenRouter (gratuito)',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      models: [
+        { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'Nemotron Ultra 550B (gratis, 1M ctx)' },
+        { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'Nemotron Super 120B (gratis, 262K ctx)' },
+        { id: 'openrouter/auto', name: 'Auto (mejor modelo disponible)' },
+        { id: 'qwen/qwen3-next-80b-a3b-instruct:free', name: 'Qwen3 Next 80B (gratis)' }
+      ],
+      defaultModel: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+      keyPlaceholder: 'sk-or-...',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.origin,
+        'X-Title': 'Productivity Monitor'
+      })
+    },
+    openai: {
+      name: 'OpenAI (GPT-4o, GPT-4)',
+      url: 'https://api.openai.com/v1/chat/completions',
+      models: [
+        { id: 'gpt-4o', name: 'GPT-4o (recomendado)' },
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini (económico)' },
+        { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
+      ],
+      defaultModel: 'gpt-4o',
+      keyPlaceholder: 'sk-...',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      })
+    },
+    groq: {
+      name: 'Groq (rápido)',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      models: [
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B' },
+        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (rápido)' },
+        { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' }
+      ],
+      defaultModel: 'llama-3.3-70b-versatile',
+      keyPlaceholder: 'gsk_...',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      })
+    },
+    anthropic: {
+      name: 'Anthropic (Claude)',
+      url: 'https://api.anthropic.com/v1/messages',
+      models: [
+        { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+        { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (rápido)' }
+      ],
+      defaultModel: 'claude-sonnet-4-20250514',
+      keyPlaceholder: 'sk-ant-...',
+      format: 'anthropic',
+      headers: (key) => ({
+        'x-api-key': key,
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      })
+    },
+    mistral: {
+      name: 'Mistral AI',
+      url: 'https://api.mistral.ai/v1/chat/completions',
+      models: [
+        { id: 'mistral-large-latest', name: 'Mistral Large' },
+        { id: 'mistral-small-latest', name: 'Mistral Small' }
+      ],
+      defaultModel: 'mistral-large-latest',
+      keyPlaceholder: 'API key...',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      })
+    },
+    custom: {
+      name: 'Personalizado (Custom URL)',
+      url: '',
+      models: [],
+      defaultModel: '',
+      keyPlaceholder: 'API key...',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      })
+    }
+  },
+
+  getAIProviderConfig() {
+    try {
+      const saved = localStorage.getItem(this.AI_PROVIDER_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      provider: 'openrouter',
+      model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+      apiKey: localStorage.getItem('openrouter_api_key') || '',
+      customUrl: ''
+    };
+  },
+
+  saveAIProviderConfig(config) {
+    localStorage.setItem(this.AI_PROVIDER_KEY, JSON.stringify(config));
+    if (config.provider === 'openrouter' && config.apiKey) {
+      localStorage.setItem('openrouter_api_key', config.apiKey);
+    }
   },
 
   // Sincronizar con la nube si el usuario estÃ¡ autenticado
@@ -245,6 +362,7 @@ function switchView(viewName) {
     updateStorageIndicator();
     if (typeof initGroqKeyUI === 'function') initGroqKeyUI();
     if (typeof initProjectContextUI === 'function') initProjectContextUI();
+    if (typeof initAIProviderUI === 'function') initAIProviderUI();
   }
 
   // Persistir vista en el hash para sobrevivir recargas

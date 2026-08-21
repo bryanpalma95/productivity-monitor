@@ -322,6 +322,145 @@ REGLAS DE NEGOCIO CLAVE:
   showToast('📋 Plantilla Archer cargada — revisa y guarda');
 }
 
+// ===== Proveedor IA — UI =====
+function initAIProviderUI() {
+  const config = Storage.getAIProviderConfig();
+  const select = document.getElementById('aiProviderSelect');
+  if (!select) return;
+
+  select.value = config.provider;
+  _populateAIModels(config.provider, config.model);
+
+  const keyInput = document.getElementById('aiProviderKeyInput');
+  if (keyInput) keyInput.value = config.apiKey || '';
+
+  const customUrl = document.getElementById('aiCustomUrl');
+  if (customUrl) customUrl.value = config.customUrl || '';
+
+  _toggleCustomUrlField(config.provider);
+}
+
+function onAIProviderChange() {
+  const provider = document.getElementById('aiProviderSelect').value;
+  const providerDef = Storage.AI_PROVIDERS[provider];
+  _populateAIModels(provider, providerDef?.defaultModel || '');
+  _toggleCustomUrlField(provider);
+
+  const keyInput = document.getElementById('aiProviderKeyInput');
+  if (keyInput) keyInput.placeholder = providerDef?.keyPlaceholder || 'API key...';
+}
+
+function _populateAIModels(provider, selectedModel) {
+  const select = document.getElementById('aiModelSelect');
+  const customInput = document.getElementById('aiModelCustom');
+  if (!select) return;
+
+  const providerDef = Storage.AI_PROVIDERS[provider];
+
+  if (provider === 'custom' || !providerDef?.models?.length) {
+    select.style.display = 'none';
+    if (customInput) { customInput.style.display = 'block'; customInput.value = selectedModel || ''; }
+    return;
+  }
+
+  select.style.display = 'block';
+  if (customInput) customInput.style.display = 'none';
+
+  select.innerHTML = providerDef.models.map(m =>
+    `<option value="${m.id}" ${m.id === selectedModel ? 'selected' : ''}>${m.name}</option>`
+  ).join('');
+}
+
+function _toggleCustomUrlField(provider) {
+  const group = document.getElementById('aiCustomUrlGroup');
+  if (group) group.style.display = provider === 'custom' ? 'block' : 'none';
+}
+
+function toggleAIProviderKeyVisibility() {
+  const input = document.getElementById('aiProviderKeyInput');
+  const icon = document.getElementById('aiProviderKeyEyeIcon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    if (icon) icon.className = 'fas fa-eye';
+  }
+}
+
+function saveAIProviderUI() {
+  const provider = document.getElementById('aiProviderSelect').value;
+  const modelSelect = document.getElementById('aiModelSelect');
+  const modelCustom = document.getElementById('aiModelCustom');
+  const keyInput = document.getElementById('aiProviderKeyInput');
+  const customUrl = document.getElementById('aiCustomUrl');
+
+  const model = (provider === 'custom' || modelSelect?.style.display === 'none')
+    ? (modelCustom?.value || '').trim()
+    : (modelSelect?.value || '');
+
+  const apiKey = (keyInput?.value || '').trim();
+
+  if (!apiKey) {
+    showToast('⚠️ Ingresa una API key', 'error');
+    return;
+  }
+
+  const config = { provider, model, apiKey, customUrl: (customUrl?.value || '').trim() };
+  Storage.saveAIProviderConfig(config);
+
+  const status = document.getElementById('aiProviderStatus');
+  const providerName = Storage.AI_PROVIDERS[provider]?.name || provider;
+  if (status) status.innerHTML = `<i class="fas fa-check-circle" style="color:var(--success)"></i> Guardado: <strong>${providerName}</strong> · ${model}`;
+  showToast(`✅ Proveedor guardado: ${providerName}`);
+}
+
+async function testAIProviderConnection() {
+  const provider = document.getElementById('aiProviderSelect').value;
+  const modelSelect = document.getElementById('aiModelSelect');
+  const modelCustom = document.getElementById('aiModelCustom');
+  const keyInput = document.getElementById('aiProviderKeyInput');
+  const customUrl = document.getElementById('aiCustomUrl');
+  const status = document.getElementById('aiProviderStatus');
+
+  const model = (provider === 'custom' || modelSelect?.style.display === 'none')
+    ? (modelCustom?.value || '').trim()
+    : (modelSelect?.value || '');
+
+  const apiKey = (keyInput?.value || '').trim();
+  if (!apiKey) { showToast('⚠️ Ingresa una API key primero', 'error'); return; }
+
+  if (status) status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando conexión...';
+
+  try {
+    const providerDef = Storage.AI_PROVIDERS[provider];
+    const url = provider === 'custom' ? (customUrl?.value || '').trim() : providerDef.url;
+    const headers = providerDef.headers(apiKey);
+
+    let body;
+    if (providerDef.format === 'anthropic') {
+      body = JSON.stringify({ model, max_tokens: 20, messages: [{ role: 'user', content: 'Responde solo: OK' }] });
+    } else {
+      body = JSON.stringify({ model, messages: [{ role: 'user', content: 'Responde solo: OK' }], max_tokens: 20 });
+    }
+
+    const res = await fetch(url, { method: 'POST', headers, body });
+
+    if (res.ok) {
+      if (status) status.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> ✅ Conexión exitosa — modelo disponible.';
+      showToast('✅ Conexión OK');
+    } else {
+      const errText = await res.text();
+      if (status) status.innerHTML = `<i class="fas fa-times-circle" style="color:var(--error)"></i> Error ${res.status}: ${errText.slice(0, 150)}`;
+      showToast(`❌ Error ${res.status}`, 'error');
+    }
+  } catch (err) {
+    if (status) status.innerHTML = `<i class="fas fa-times-circle" style="color:var(--error)"></i> Error de red: ${err.message}`;
+    showToast('❌ Error de conexión', 'error');
+  }
+}
+
 // ===== PWA / Service Worker =====
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;

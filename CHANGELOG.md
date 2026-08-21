@@ -1,4 +1,20 @@
-﻿## [2.1.4] - 2026-08-20
+﻿## [2.2.0] - 2026-08-20
+
+### Added
+- **Selector de proveedor IA configurable** — nueva seccion en Mis Datos permite elegir
+  entre OpenRouter (gratuito), OpenAI, Groq, Anthropic (Claude), Mistral o URL personalizada.
+- Selector de modelo por proveedor con opciones predefinidas.
+- Boton "Probar conexion" valida API key + modelo antes de guardar.
+- Soporte completo para formato Anthropic (system separado de messages).
+- Opcion "Personalizado (Custom URL)" para servidores OpenAI-compatible propios.
+- core.js: AI_PROVIDERS con 6 proveedores, getAIProviderConfig/saveAIProviderConfig.
+
+### Changed
+- reports.js: callGroqChat reemplazado por callAI dinamico que lee la config del usuario.
+  Mantiene alias callGroqChat para retrocompatibilidad.
+- El default sigue siendo OpenRouter + Nemotron Ultra (gratuito). El usuario no necesita
+  cambiar nada si no quiere — todo funciona como antes.
+## [2.1.4] - 2026-08-20
 
 ### Fixed
 - **Resumen incompleto**: cambio de modelo `openrouter/auto` → `meta-llama/llama-3.3-70b-instruct:free`
@@ -196,6 +212,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 
