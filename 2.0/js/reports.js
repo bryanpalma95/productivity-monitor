@@ -527,7 +527,7 @@ REGLAS OBLIGATORIAS:
 - Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]
 - PARTICIPANTES: lista solo a quienes hablan directamente (su voz aparece en la transcripción). Las personas mencionadas por otros van en la sección de Temas o Compromisos, no en Participantes.
 - ERRORES FONÉTICOS: la transcripción viene de speech-to-text y puede contener errores. Si una palabra no tiene sentido en el contexto pero fonéticamente se parece a un término técnico conocido, usa el término correcto. Si no puedes inferirlo, déjalo como está sin inventar.
-- IDENTIFICACIÓN DE HABLANTES: cuando puedas inferir quién habla basándote en el contexto (rol, tema, estilo, contenido), indica el nombre entre corchetes antes de la cita relevante: **[Nico]** "ya terminé la API". Si no puedes inferir con confianza, usa [Participante]. El audio [🔊] mezcla todas las voces; el micrófono siempre es el usuario que graba.${contextBlock}`
+- IDENTIFICACIÓN DE HABLANTES: las líneas SIN prefijo [🔊] son SIEMPRE Bryan (el usuario que graba con su micrófono). Las líneas con [🔊] son otros participantes hablando en la reunión — infiere quién dice qué por contexto (rol, tema). En Participantes lista a Bryan + los nombres que puedas inferir del audio del sistema.${contextBlock}`
         },
         {
           role: 'user',
