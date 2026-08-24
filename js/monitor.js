@@ -425,22 +425,21 @@ async function startAudioCapture() {
       });
     }
 
-    // ── 2. Audio del sistema via getDisplayMedia (igual que videollamadas) ──
+    // ── 2. Audio del sistema ──
     if (useSystem) {
-      try {
-        // Si startScreenCapture ya obtuvo audio del sistema, reutilizarlo
-        if (App.systemAudioStream && App.systemAudioStream.getAudioTracks().length > 0
-            && App.systemAudioStream.getAudioTracks()[0].readyState === 'live') {
-          // Ya tenemos audio del sistema del screen share — no pedir de nuevo
-          const statusMsg = document.getElementById('systemAudioStatusMsg');
-          const hasGroq = !!getGroqApiKey();
-          if (statusMsg) statusMsg.innerHTML = hasGroq
-            ? '<span style="color:var(--success)">✅ Audio del sistema capturado (desde pantalla compartida). Transcribiendo con Groq Whisper.</span>'
-            : '<span style="color:var(--warning)">⚠️ Audio capturado, pero necesitas Groq API key para transcribirlo.</span>';
-          startSystemAudioTranscription();
-          showToast('🔊 Audio del sistema reutilizado desde pantalla compartida');
-        } else {
-          // No hay audio del sistema previo — pedir getDisplayMedia
+      // Si startScreenCapture ya obtuvo audio del sistema, reutilizarlo
+      if (App.systemAudioStream && App.systemAudioStream.getAudioTracks().length > 0
+          && App.systemAudioStream.getAudioTracks()[0].readyState === 'live') {
+        const statusMsg = document.getElementById('systemAudioStatusMsg');
+        const hasGroq = !!getGroqApiKey();
+        if (statusMsg) statusMsg.innerHTML = hasGroq
+          ? '<span style="color:var(--success)">✅ Audio del sistema capturado (desde pantalla compartida). Transcribiendo con Groq Whisper.</span>'
+          : '<span style="color:var(--warning)">⚠️ Audio capturado, pero necesitas Groq API key para transcribirlo.</span>';
+        startSystemAudioTranscription();
+        showToast('🔊 Audio del sistema reutilizado desde pantalla compartida');
+      } else {
+        // No hay audio previo — pedir getDisplayMedia
+        try {
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: {
@@ -456,40 +455,38 @@ async function startAudioCapture() {
           const audioTracks = displayStream.getAudioTracks();
           const statusMsg = document.getElementById('systemAudioStatusMsg');
 
-        if (audioTracks.length === 0) {
-          // El usuario no marcó "Compartir audio del sistema" en el diálogo
-          if (statusMsg) statusMsg.innerHTML =
-            '<span style="color:var(--warning)">⚠️ No se detectó audio del sistema. ' +
-            'Asegúrate de marcar <strong>"Compartir audio del sistema"</strong> en el diálogo antes de hacer clic en "Compartir".</span>';
-          showToast('⚠️ Sin audio del sistema — marca la opción en el diálogo del navegador', 'error');
-        } else {
-          App.systemAudioStream = new MediaStream(audioTracks);
+          if (audioTracks.length === 0) {
+            if (statusMsg) statusMsg.innerHTML =
+              '<span style="color:var(--warning)">⚠️ No se detectó audio del sistema. ' +
+              'Asegúrate de marcar <strong>"Compartir audio del sistema"</strong> en el diálogo antes de hacer clic en "Compartir".</span>';
+            showToast('⚠️ Sin audio del sistema — marca la opción en el diálogo del navegador', 'error');
+          } else {
+            App.systemAudioStream = new MediaStream(audioTracks);
 
-          // Escuchar si el usuario cierra el diálogo de compartir
-          audioTracks[0].addEventListener('ended', () => {
-            App.systemAudioStream = null;
-            const s = document.getElementById('audioStatus');
-            if (s) s.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Sistema detenido</span>';
-          });
+            audioTracks[0].addEventListener('ended', () => {
+              App.systemAudioStream = null;
+              const s = document.getElementById('audioStatus');
+              if (s) s.innerHTML = '<span class="status-badge idle"><i class="fas fa-circle"></i> Sistema detenido</span>';
+            });
 
-          startSystemAudioTranscription();
+            startSystemAudioTranscription();
 
-          const hasGroq = !!getGroqApiKey();
-          if (statusMsg) statusMsg.innerHTML = hasGroq
-            ? '<span style="color:var(--success)">✅ Audio del sistema capturado. Transcribiendo con Groq Whisper cada 15 seg.</span>'
-            : '<span style="color:var(--warning)">⚠️ Audio del sistema capturado, pero <strong>necesitas una Groq API key</strong> para transcribirlo. Configúrala en <strong>Mis Datos</strong>.</span>';
-          showToast('🔊 Audio del sistema capturado' + (hasGroq ? '' : ' (sin transcripción — falta Groq key)'));
+            const hasGroq = !!getGroqApiKey();
+            if (statusMsg) statusMsg.innerHTML = hasGroq
+              ? '<span style="color:var(--success)">✅ Audio del sistema capturado. Transcribiendo con Groq Whisper cada 15 seg.</span>'
+              : '<span style="color:var(--warning)">⚠️ Audio del sistema capturado, pero <strong>necesitas una Groq API key</strong> para transcribirlo. Configúrala en <strong>Mis Datos</strong>.</span>';
+            showToast('🔊 Audio del sistema capturado' + (hasGroq ? '' : ' (sin transcripción — falta Groq key)'));
+          }
+        } catch (sysErr) {
+          if (sysErr.name === 'NotAllowedError' || sysErr.name === 'AbortError') {
+            showToast('ℹ️ Diálogo de pantalla cancelado. Continuando solo con micrófono.', 'info');
+          } else {
+            console.error('Error getDisplayMedia:', sysErr);
+            showToast('⚠️ No se pudo abrir el diálogo de pantalla: ' + sysErr.message, 'error');
+          }
+          if (!useMic) return;
         }
-      } catch (sysErr) {
-        if (sysErr.name === 'NotAllowedError' || sysErr.name === 'AbortError') {
-          showToast('ℹ️ Diálogo de pantalla cancelado. Continuando solo con micrófono.', 'info');
-        } else {
-          console.error('Error getDisplayMedia:', sysErr);
-          showToast('⚠️ No se pudo abrir el diálogo de pantalla: ' + sysErr.message, 'error');
-        }
-        if (!useMic) return;
       }
-      } // cierre del else (no había audio previo)
     }
 
     // ── 3. Visualizador — usar mic si existe, si no sistema ──
