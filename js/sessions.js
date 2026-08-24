@@ -281,6 +281,9 @@ function _sessionCardHTML(s) {
         <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();viewSessionDetails('${s.id}')">
           <i class="fas fa-eye"></i> Ver
         </button>
+        <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();downloadSessionRaw('${s.id}')">
+          <i class="fas fa-download"></i> Descargar
+        </button>
         <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();editSession('${s.id}')">
           <i class="fas fa-edit"></i> Editar
         </button>
@@ -404,6 +407,71 @@ function deleteSession(sessionId) {
     loadDashboard();
     updateStorageIndicator();
     showToast(`🗑️ Sesión eliminada — ${sizeStr} liberados`);
+  }
+}
+
+// ===== Descargar contenido en bruto (ZIP: transcripción + capturas) =====
+async function downloadSessionRaw(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const transcripts = session.transcripts || [];
+  const screenshots = session.screenshots || [];
+
+  if (transcripts.length === 0 && screenshots.length === 0) {
+    showToast('⚠️ No hay contenido para descargar', 'error');
+    return;
+  }
+
+  if (typeof JSZip === 'undefined') {
+    const txt = transcripts.map(t => `[${formatTime(t.timestamp)}] ${t.text}`).join('\n');
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcripcion-${(session.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('📝 Transcripción descargada');
+    return;
+  }
+
+  showToast('📦 Generando ZIP...');
+
+  const zip = new JSZip();
+  const folderName = (session.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
+  const folder = zip.folder(folderName);
+
+  if (transcripts.length > 0) {
+    const txt = transcripts.map(t => `[${formatDateTime(t.timestamp)}] ${t.text}`).join('\n');
+    folder.file('transcripcion.txt', txt);
+  }
+
+  if (screenshots.length > 0) {
+    const capturas = folder.folder('capturas');
+    screenshots.forEach((s, i) => {
+      const time = formatTime(s.timestamp).replace(/:/g, '-');
+      if (s.dataUrl) {
+        const base64 = s.dataUrl.split(',')[1];
+        if (base64) capturas.file(`captura-${String(i + 1).padStart(3, '0')}-${time}.jpg`, base64, { base64: true });
+      } else if (s.storageUrl) {
+        capturas.file(`captura-${String(i + 1).padStart(3, '0')}-${time}.url.txt`, s.storageUrl);
+      }
+    });
+  }
+
+  try {
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${folderName}-raw-${Date.now()}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✅ ZIP descargado: ${transcripts.length} transcripciones + ${screenshots.length} capturas`);
+  } catch (err) {
+    console.error('Error generando ZIP:', err);
+    showToast('❌ Error generando ZIP', 'error');
   }
 }
 
