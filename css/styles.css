@@ -1701,3 +1701,173 @@ input:checked + .slider:before {
   font-size: 0.75rem;
   color: var(--muted, #888);
 }
+
+/* ===== Onboarding Wizard ===== */
+.onboarding-card {
+  max-width: 560px;
+  width: 92%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.onboarding-steps {
+  padding: 32px 28px 16px;
+  min-height: 340px;
+}
+
+.onboarding-step {
+  display: none;
+  animation: fadeIn 0.25s;
+}
+
+.onboarding-step.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.onboarding-icon {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.onboarding-step h2 {
+  text-align: center;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+}
+
+.onboarding-step p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.onboarding-features {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+
+.onboarding-features li {
+  padding: 8px 0;
+  font-size: 0.88rem;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.onboarding-features li i {
+  color: var(--primary);
+  width: 20px;
+  text-align: center;
+}
+
+.onboarding-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.onboarding-key-card {
+  background: var(--bg-tertiary, #1e1e1e);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.onboarding-key-card h4 {
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.onboarding-key-card p {
+  text-align: left;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+.onboarding-note {
+  font-size: 0.78rem !important;
+  color: var(--muted) !important;
+  margin-top: 10px !important;
+}
+
+.onboarding-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.onboarding-mode {
+  background: var(--bg-tertiary, #1e1e1e);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.onboarding-mode h4 {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.onboarding-mode ol {
+  padding-left: 18px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.onboarding-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.onboarding-controls {
+  padding: 16px 28px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.onboarding-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.onboarding-dots .dot.active {
+  background: var(--primary);
+  width: 20px;
+  border-radius: 4px;
+}
+
+.onboarding-buttons {
+  display: flex;
+  gap: 10px;
+}

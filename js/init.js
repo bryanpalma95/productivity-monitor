@@ -14,6 +14,9 @@ function initApp() {
     versionEl.textContent = 'v' + APP_VERSION;
   }
 
+  // Mostrar guía de primera vez si no la ha visto
+  checkOnboarding();
+
   // Verificar sesión activa
   setTimeout(checkForActiveSession, 500);
 
@@ -320,6 +323,53 @@ REGLAS DE NEGOCIO CLAVE:
     _updateProjectContextStats(template);
   }
   showToast('📋 Plantilla Archer cargada — revisa y guarda');
+}
+
+// ===== Onboarding — Guía de primera vez =====
+let _onboardingStep = 1;
+const _ONBOARDING_TOTAL = 4;
+
+function checkOnboarding() {
+  if (localStorage.getItem('onboarding_done')) return;
+  setTimeout(() => {
+    const modal = document.getElementById('onboardingModal');
+    if (modal) modal.style.display = 'flex';
+  }, 800);
+}
+
+function onboardingNext() {
+  if (_onboardingStep >= _ONBOARDING_TOTAL) return;
+  _onboardingStep++;
+  _updateOnboardingUI();
+}
+
+function onboardingPrev() {
+  if (_onboardingStep <= 1) return;
+  _onboardingStep--;
+  _updateOnboardingUI();
+}
+
+function onboardingFinish() {
+  const dontShow = document.getElementById('onboardingDontShow')?.checked;
+  if (dontShow) localStorage.setItem('onboarding_done', '1');
+  const modal = document.getElementById('onboardingModal');
+  if (modal) modal.style.display = 'none';
+  switchView('data');
+}
+
+function _updateOnboardingUI() {
+  document.querySelectorAll('.onboarding-step').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.step) === _onboardingStep);
+  });
+  document.querySelectorAll('#onboardingDots .dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === _onboardingStep - 1);
+  });
+  const prev = document.getElementById('onboardingPrev');
+  const next = document.getElementById('onboardingNext');
+  const finish = document.getElementById('onboardingFinish');
+  if (prev) prev.style.display = _onboardingStep > 1 ? 'inline-flex' : 'none';
+  if (next) next.style.display = _onboardingStep < _ONBOARDING_TOTAL ? 'inline-flex' : 'none';
+  if (finish) finish.style.display = _onboardingStep === _ONBOARDING_TOTAL ? 'inline-flex' : 'none';
 }
 
 // ===== Proveedor IA — UI =====

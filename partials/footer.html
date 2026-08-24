@@ -4,6 +4,105 @@
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
+<!-- Onboarding — Guía de primera vez -->
+<div class="modal" id="onboardingModal" style="display:none">
+  <div class="modal-card onboarding-card">
+    <div class="onboarding-steps" id="onboardingSteps">
+
+      <!-- Paso 1 -->
+      <div class="onboarding-step active" data-step="1">
+        <div class="onboarding-icon"><i class="fas fa-chart-line"></i></div>
+        <h2>Bienvenido a Productivity Monitor</h2>
+        <p>Tu asistente de productividad personal que <strong>transcribe reuniones</strong>, <strong>genera resúmenes con IA</strong> y <strong>captura tu pantalla</strong> automáticamente.</p>
+        <ul class="onboarding-features">
+          <li><i class="fas fa-microphone"></i> Transcripción en tiempo real (micrófono + audio del sistema)</li>
+          <li><i class="fas fa-robot"></i> Resumen IA automático al terminar cada sesión</li>
+          <li><i class="fas fa-camera"></i> Capturas de pantalla inteligentes (detecta cambios)</li>
+          <li><i class="fas fa-mobile-alt"></i> Modo Entrevista para grabar desde el móvil</li>
+        </ul>
+      </div>
+
+      <!-- Paso 2 -->
+      <div class="onboarding-step" data-step="2">
+        <div class="onboarding-icon" style="color:var(--warning)"><i class="fas fa-key"></i></div>
+        <h2>Configura tus API Keys</h2>
+        <p>Para funcionar necesitas <strong>2 keys gratuitas</strong> (sin tarjeta de crédito):</p>
+        <div class="onboarding-keys">
+          <div class="onboarding-key-card">
+            <h4><i class="fas fa-microphone-alt"></i> Groq — Transcripción</h4>
+            <p>Convierte tu voz en texto con Whisper. Gratis.</p>
+            <a href="https://console.groq.com" target="_blank" class="btn btn-sm btn-secondary">
+              <i class="fas fa-external-link-alt"></i> Obtener key en console.groq.com
+            </a>
+          </div>
+          <div class="onboarding-key-card">
+            <h4><i class="fas fa-robot"></i> OpenRouter — Resumen IA</h4>
+            <p>Genera minutas automáticas con IA. Gratis.</p>
+            <a href="https://openrouter.ai/keys" target="_blank" class="btn btn-sm btn-secondary">
+              <i class="fas fa-external-link-alt"></i> Obtener key en openrouter.ai/keys
+            </a>
+          </div>
+        </div>
+        <p class="onboarding-note"><i class="fas fa-info-circle"></i> Las keys se guardan solo en tu navegador. No se envían a ningún servidor nuestro.</p>
+      </div>
+
+      <!-- Paso 3 -->
+      <div class="onboarding-step" data-step="3">
+        <div class="onboarding-icon"><i class="fas fa-play-circle"></i></div>
+        <h2>Cómo usar</h2>
+        <div class="onboarding-modes">
+          <div class="onboarding-mode">
+            <h4><i class="fas fa-desktop"></i> Sesión Normal (PC)</h4>
+            <ol>
+              <li>Compartir Pantalla + Activar Audio</li>
+              <li>Iniciar Sesión</li>
+              <li>Al terminar → Resumen IA automático</li>
+            </ol>
+          </div>
+          <div class="onboarding-mode">
+            <h4><i class="fas fa-microphone-alt"></i> Modo Entrevista (Móvil)</h4>
+            <ol>
+              <li>Clic en "Iniciar Entrevista"</li>
+              <li>Solo usa el micrófono — sin pantalla</li>
+              <li>Al terminar → Descargar audio + Resumen IA</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 4 -->
+      <div class="onboarding-step" data-step="4">
+        <div class="onboarding-icon" style="color:var(--success)"><i class="fas fa-check-circle"></i></div>
+        <h2>¡Listo!</h2>
+        <p>Configura tus API keys en <strong>Mis Datos</strong> y comienza a monitorear tu productividad.</p>
+        <label class="onboarding-checkbox">
+          <input type="checkbox" id="onboardingDontShow" checked>
+          No mostrar esta guía de nuevo
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Controles -->
+    <div class="onboarding-controls">
+      <div class="onboarding-dots" id="onboardingDots">
+        <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div class="onboarding-buttons">
+        <button class="btn btn-secondary" id="onboardingPrev" onclick="onboardingPrev()" style="display:none">
+          <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <button class="btn btn-primary" id="onboardingNext" onclick="onboardingNext()">
+          Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+        <button class="btn btn-success" id="onboardingFinish" onclick="onboardingFinish()" style="display:none">
+          <i class="fas fa-rocket"></i> Comenzar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal para ver reporte -->
 <div class="modal" id="reportModal" style="display:none">
   <div class="modal-card">
