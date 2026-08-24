@@ -428,21 +428,33 @@ async function startAudioCapture() {
     // ── 2. Audio del sistema via getDisplayMedia (igual que videollamadas) ──
     if (useSystem) {
       try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,          // requerido por la API, lo silenciamos enseguida
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-            suppressLocalAudioPlayback: false  // Chrome 109+ — no suprimir el propio audio
-          }
-        });
+        // Si startScreenCapture ya obtuvo audio del sistema, reutilizarlo
+        if (App.systemAudioStream && App.systemAudioStream.getAudioTracks().length > 0
+            && App.systemAudioStream.getAudioTracks()[0].readyState === 'live') {
+          // Ya tenemos audio del sistema del screen share — no pedir de nuevo
+          const statusMsg = document.getElementById('systemAudioStatusMsg');
+          const hasGroq = !!getGroqApiKey();
+          if (statusMsg) statusMsg.innerHTML = hasGroq
+            ? '<span style="color:var(--success)">✅ Audio del sistema capturado (desde pantalla compartida). Transcribiendo con Groq Whisper.</span>'
+            : '<span style="color:var(--warning)">⚠️ Audio capturado, pero necesitas Groq API key para transcribirlo.</span>';
+          startSystemAudioTranscription();
+          showToast('🔊 Audio del sistema reutilizado desde pantalla compartida');
+        } else {
+          // No hay audio del sistema previo — pedir getDisplayMedia
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              suppressLocalAudioPlayback: false
+            }
+          });
 
-        // Detener la pista de video de inmediato (solo queremos el audio)
-        displayStream.getVideoTracks().forEach(t => t.stop());
+          displayStream.getVideoTracks().forEach(t => t.stop());
 
-        const audioTracks = displayStream.getAudioTracks();
-        const statusMsg = document.getElementById('systemAudioStatusMsg');
+          const audioTracks = displayStream.getAudioTracks();
+          const statusMsg = document.getElementById('systemAudioStatusMsg');
 
         if (audioTracks.length === 0) {
           // El usuario no marcó "Compartir audio del sistema" en el diálogo
@@ -477,6 +489,7 @@ async function startAudioCapture() {
         }
         if (!useMic) return;
       }
+      } // cierre del else (no había audio previo)
     }
 
     // ── 3. Visualizador — usar mic si existe, si no sistema ──
