@@ -492,6 +492,12 @@ function viewSessionDetails(sessionId) {
                 <i class="fas fa-robot"></i> Resumen IA
                </button>`
         }
+        ${transcripts.length > 0
+          ? `<button class="btn btn-secondary" onclick="generateDetailedReport('${session.id}')">
+              <i class="fas fa-file-alt"></i> Informe Detallado
+             </button>`
+          : ''
+        }
         <button class="btn btn-secondary" onclick="exportReportPDF('${session.id}')">
           <i class="fas fa-file-pdf"></i> PDF
         </button>

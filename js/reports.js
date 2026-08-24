@@ -730,6 +730,167 @@ ${combinedSummaries}`
   }
 }
 
+// ===== Informe Detallado =====
+async function generateDetailedReport(sessionId) {
+  const session = Storage.getSession(sessionId);
+  if (!session) return;
+
+  const projectContext = (typeof Storage.getProjectContext === 'function')
+    ? Storage.getProjectContext()
+    : localStorage.getItem('project_context') || '';
+
+  const contextBlock = projectContext
+    ? `\n\nCONTEXTO DEL PROYECTO ACTIVO:\n${projectContext}`
+    : '';
+
+  const modal = document.getElementById('reportModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+
+  modal.style.display = 'flex';
+  title.textContent = 'Informe Detallado';
+
+  body.innerHTML = `
+    <div class="ai-summary">
+      <div class="ai-loading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Generando informe detallado con IA...</p>
+        <p style="font-size:0.8rem;color:var(--muted)">Esto puede tardar más que el resumen ejecutivo</p>
+      </div>
+    </div>
+  `;
+
+  const transcripts = session.transcripts || [];
+  const screenshots = session.screenshots || [];
+  const sessionDate = session.startedAt ? formatDateTime(session.startedAt) : 'Desconocida';
+  const cleanedTranscripts = cleanTranscriptsForAI(transcripts);
+  const chunks = splitTranscriptIntoChunks(cleanedTranscripts, AI_CHUNK_SIZE);
+  const chunksToProcess = chunks.slice(0, AI_MAX_CHUNKS);
+  const totalChunks = chunks.length;
+  const isTruncated = totalChunks > AI_MAX_CHUNKS;
+
+  try {
+    let transcriptText;
+    if (chunksToProcess.length <= 1) {
+      transcriptText = chunksToProcess[0] || '';
+    } else {
+      const partials = [];
+      for (let i = 0; i < chunksToProcess.length; i++) {
+        body.querySelector('.ai-loading p').textContent = `Analizando parte ${i + 1} de ${chunksToProcess.length}...`;
+        const partial = await callGroqChat([
+          { role: 'system', content: `Extrae TODA la información de este fragmento de reunión sin omitir nada. Lista: temas discutidos con detalle completo, nombres, campos técnicos mencionados, decisiones, reglas de negocio, escenarios, dependencias y pendientes. Sé exhaustivo (máximo 600 palabras). Fragmento ${i + 1} de ${chunksToProcess.length}.${contextBlock}` },
+          { role: 'user', content: chunksToProcess[i] }
+        ]);
+        partials.push(partial);
+      }
+      transcriptText = partials.map((p, i) => `--- Parte ${i + 1} ---\n${p}`).join('\n\n');
+    }
+
+    body.querySelector('.ai-loading p').textContent = 'Generando informe final...';
+
+    const report = await callGroqChat([
+      {
+        role: 'system',
+        content: `Eres un analista técnico experto. Generas informes DETALLADOS y EXHAUSTIVOS de reuniones de trabajo. Tu objetivo es documentar TODO lo discutido de forma que alguien que no asistió pueda entender completamente qué pasó.
+
+CONTEXTO DE LA TRANSCRIPCIÓN:
+- Líneas con [🔊] = audio del SISTEMA (otros participantes)
+- Líneas SIN prefijo = audio del MICRÓFONO (Bryan, quien graba)
+- Puede contener errores fonéticos de speech-to-text
+
+Genera un INFORME DETALLADO en español con el siguiente formato Markdown. Sé EXHAUSTIVO — documenta todo.
+
+# [Título descriptivo de la sesión]
+
+## 📌 Contexto y Apertura
+(Descripción del inicio de la sesión, participantes, contexto previo relevante mencionado. 2-4 oraciones.)
+
+## 📊 Datos de la Sesión
+| | |
+|---|---|
+| 📅 Fecha | FECHA_REAL |
+| ⏱ Horario | HH:MM – HH:MM hrs |
+| ⌛ Duración | DURACION_REAL |
+| 📝 Transcripciones | N |
+| 👥 Participantes | (solo quienes hablan) |
+| ✅ Estado | Terminada |
+
+## 📑 Temas Revisados en Detalle
+(Para CADA tema discutido, crea una subsección con:)
+
+### [Nombre del tema o HU]
+**Objetivo:** Qué se busca lograr con este tema.
+**Detalle:** Descripción completa de lo discutido — incluye campos, reglas, flujos, sistemas involucrados.
+**Criterios/Escenarios:** Si se mencionaron escenarios de validación o criterios de aceptación, listarlos.
+**Decisiones:** Qué se decidió sobre este tema.
+**Notas:** Cualquier observación adicional relevante.
+
+(Repite para cada tema principal.)
+
+## 🔄 Flujos de Integración Identificados
+(Si se discutieron integraciones entre sistemas, listarlas en formato tabla:)
+| Origen | → | Destino | Frecuencia | Detalle |
+|--------|---|---------|------------|---------|
+
+## 📋 Pendientes y Próximos Pasos
+(Numerados con contexto completo para actuar sin releer la transcripción.)
+1. **[Pendiente]** — Contexto y detalle — Responsable: [nombre]
+
+## ⚠️ Riesgos, Bloqueos o Puntos de Atención
+(Si hay. Si no hay, omite la sección.)
+
+---
+*Productivity Monitor 2.0 · Informe detallado · Sesión FECHA*
+
+REGLAS:
+- Sé EXHAUSTIVO — documenta todo lo que se discutió, no resumas.
+- Incluye campos técnicos, nombres de sistemas, reglas de negocio si se mencionaron.
+- Usa los datos reales (Fecha, Duración) en la tabla.
+- Nunca inventes información.
+- PARTICIPANTES: solo quienes hablan directamente.
+- ERRORES FONÉTICOS: corrige por contexto si es evidente.
+- HABLANTES: sin [🔊] = Bryan. Con [🔊] = otros.
+- Si se discutieron múltiples temas/HUs, cada uno merece su propia subsección completa.
+- NO omitas detalles técnicos (campos, valores, reglas).${contextBlock}`
+      },
+      {
+        role: 'user',
+        content: `Sesión: ${session.title}
+Tipo: ${getTypeLabel(session.type)}
+Fecha: ${sessionDate}
+Duración: ${formatDuration(session.duration || 0)}
+Capturas: ${screenshots.length}
+Transcripciones: ${cleanedTranscripts.length} (de ${transcripts.length} totales)
+${isTruncated ? `⚠️ Sesión con ${totalChunks} partes, se analizaron ${chunksToProcess.length}.` : ''}
+
+${chunksToProcess.length <= 1 ? 'Transcripción completa:' : 'Contenido extraído de la sesión:'}
+${transcriptText || 'Sin transcripciones disponibles'}`
+      }
+    ]);
+
+    window._lastAISummary = { text: report, sessionId };
+    renderAISummaryResult(body, session.id, report);
+
+  } catch (err) {
+    console.error('Error generando informe detallado:', err);
+    body.innerHTML = `
+      <div class="ai-summary">
+        <div class="ai-error">
+          <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:var(--warning);margin-bottom:16px"></i>
+          <h4>No se pudo generar el informe</h4>
+          <p>${escapeHtml(err.message)}</p>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:16px;justify-content:center">
+          <button class="btn btn-primary" onclick="generateDetailedReport('${sessionId}')">
+            <i class="fas fa-redo"></i> Reintentar
+          </button>
+          <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
 // Convierte Markdown básico a HTML para renderizar el resumen
 function renderMarkdown(text) {
   return text
