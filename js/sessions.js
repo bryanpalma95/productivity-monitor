@@ -429,7 +429,7 @@ async function downloadSessionRaw(sessionId) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `transcripcion-${(session.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}.txt`;
+    a.download = `${(session.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('📝 Transcripción descargada');
@@ -465,7 +465,7 @@ async function downloadSessionRaw(sessionId) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${folderName}-raw-${Date.now()}.zip`;
+    a.download = `${folderName}.zip`;
     a.click();
     URL.revokeObjectURL(url);
     showToast(`✅ ZIP descargado: ${transcripts.length} transcripciones + ${screenshots.length} capturas`);
@@ -880,7 +880,7 @@ async function exportScreenshotsZip(sessionId) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `capturas-${folderName}-${Date.now()}.zip`;
+    a.download = `${folderName}-capturas.zip`;
     a.click();
     URL.revokeObjectURL(url);
     showToast(`✅ ZIP descargado con ${screenshots.length} capturas`);

@@ -1210,7 +1210,7 @@ function _downloadInterviewAudio(sessionId) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `entrevista-${title}-${Date.now()}.${ext}`;
+  a.download = `${title}.${ext}`;
   a.click();
   URL.revokeObjectURL(url);
   showToast(`✅ Audio descargado (${(blob.size / (1024 * 1024)).toFixed(1)} MB)`);

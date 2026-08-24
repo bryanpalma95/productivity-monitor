@@ -291,7 +291,7 @@ function exportReportMarkdown(sessionId) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `reporte-${title}-${Date.now()}.md`;
+  a.download = `${title}.md`;
   a.click();
   URL.revokeObjectURL(url);
 
@@ -1008,7 +1008,7 @@ function downloadAISummary(sessionId) {
     return;
   }
   const session = Storage.getSession(sessionId);
-  const filename = `resumen-${(session?.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.md`;
+  const filename = `${(session?.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-resumen.md`;
   const blob = new Blob([summary], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
