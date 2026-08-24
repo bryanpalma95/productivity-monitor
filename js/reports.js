@@ -450,6 +450,8 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
   const title = document.getElementById('modalTitle');
   const body = document.getElementById('modalBody');
 
+  // Asegurar que el modal esté visible (puede llamarse desde fuera del modal en móvil)
+  modal.style.display = 'flex';
   title.textContent = 'Resumen IA';
 
   // Si ya hay un resumen guardado y no se fuerza regenerar, mostrarlo directamente
