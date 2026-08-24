@@ -348,6 +348,7 @@ function debouncedFilterSessions() {
 function filterSessions() {
   const search = document.getElementById('sessionSearch').value.toLowerCase();
   const filter = document.getElementById('sessionFilter').value;
+  const sort = document.getElementById('sessionSort')?.value || 'newest';
 
   let sessions = Storage.getSessions();
 
@@ -359,6 +360,13 @@ function filterSessions() {
       (s.title || '').toLowerCase().includes(search) ||
       (s.transcripts || []).some(t => t.text.toLowerCase().includes(search))
     );
+  }
+
+  // Ordenar por fecha
+  if (sort === 'newest') {
+    sessions.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  } else {
+    sessions.sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
   }
 
   // Guardar lista filtrada y resetear a página 0

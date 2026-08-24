@@ -13,6 +13,10 @@
         <option value="active">Activas</option>
         <option value="ended">Terminadas</option>
       </select>
+      <select id="sessionSort" onchange="filterSessions()">
+        <option value="newest">Más recientes</option>
+        <option value="oldest">Más antiguas</option>
+      </select>
     </div>
     <div id="sessions-list" class="session-list">
       <p class="empty-state">Cargando sesiones...</p>
