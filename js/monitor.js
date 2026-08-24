@@ -677,6 +677,12 @@ function _startGroqMicTranscription() {
   }
 
   clearInterval(App.micTranscriptionInterval);
+
+  // Primer intento inmediato (no esperar 15s)
+  setTimeout(() => {
+    if (App.audioStream && App.currentSession) _transcribeWithGroq();
+  }, 2000);
+
   App.micTranscriptionInterval = setInterval(() => {
     if (!App.audioStream || !App.currentSession) return;
     _transcribeWithGroq();
@@ -684,11 +690,27 @@ function _startGroqMicTranscription() {
 }
 
 async function _transcribeWithGroq() {
-  if (!App.audioStream || !App.currentSession) return;
-  if (_micMediaRecorder && _micMediaRecorder.state === 'recording') return;
+  if (!App.audioStream || !App.currentSession) {
+    console.log('[Mic] Skip: no stream o no session');
+    return;
+  }
+  if (_micMediaRecorder && _micMediaRecorder.state === 'recording') {
+    console.log('[Mic] Skip: ya grabando');
+    return;
+  }
 
   const apiKey = getGroqApiKey();
-  if (!apiKey) return;
+  if (!apiKey) {
+    console.log('[Mic] Skip: sin Groq API key');
+    return;
+  }
+
+  // Verificar que el stream tiene pistas activas
+  const tracks = App.audioStream.getAudioTracks();
+  if (!tracks.length || tracks[0].readyState !== 'live') {
+    console.log('[Mic] Skip: stream sin pistas activas');
+    return;
+  }
 
   try {
     const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
