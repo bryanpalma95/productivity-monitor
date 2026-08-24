@@ -792,8 +792,8 @@ function renderAISummaryResult(body, sessionId, summary, fromCache = false) {
       <div class="ai-result">
         <h4><i class="fas fa-robot"></i> Resumen generado</h4>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-          <div class="ai-model-badge" title="Proveedor: OpenRouter — enruta al mejor modelo gratuito disponible.">
-            <i class="fas fa-microchip"></i> ${AI_PROVIDER} / auto
+          <div class="ai-model-badge" title="Proveedor IA configurado en Mis Datos">
+            <i class="fas fa-microchip"></i> ${Storage.getAIProviderConfig().provider} / ${Storage.getAIProviderConfig().model?.split('/').pop() || 'auto'}
           </div>
           ${cacheNote}
         </div>
