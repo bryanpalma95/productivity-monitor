@@ -1014,3 +1014,191 @@ function addTranscriptEntry(text, timestamp) {
   liveTranscript.appendChild(entryEl);
   liveTranscript.scrollTop = liveTranscript.scrollHeight;
 }
+
+
+// ===== Modo Entrevista =====
+// Graba audio completo del micrófono + transcribe en paralelo.
+// Al terminar ofrece descargar el audio completo como .webm.
+
+let _interviewRecorder = null;
+let _interviewChunks = [];
+let _interviewActive = false;
+
+async function startInterviewMode() {
+  if (_interviewActive) return;
+  if (App.privacyMode) {
+    showToast('🔒 Modo privacidad activado.', 'error');
+    return;
+  }
+
+  const title = document.getElementById('sessionTitle')?.value?.trim() || 'Entrevista';
+  const type = document.getElementById('sessionType')?.value || 'meeting';
+
+  try {
+    App.audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true }
+    });
+
+    const session = {
+      id: generateId(),
+      title: title,
+      type: type,
+      startedAt: Date.now(),
+      endedAt: null,
+      duration: 0,
+      transcripts: [],
+      screenshots: [],
+      status: 'active',
+      interviewMode: true
+    };
+
+    Storage.addSession(session);
+    App.currentSession = session;
+    App.isRecording = true;
+    saveActiveSessionMeta(session.id);
+
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+      .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+    _interviewChunks = [];
+    _interviewRecorder = new MediaRecorder(App.audioStream, mimeType ? { mimeType } : {});
+    _interviewRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) _interviewChunks.push(e.data);
+    };
+    _interviewRecorder.start(5000);
+
+    startMicTranscription();
+    setupAudioVisualizer(App.audioStream);
+    startSessionTimer(session.startedAt);
+
+    _interviewActive = true;
+    _updateInterviewUI(true);
+    showRecordingIndicator();
+    showToast('🎙️ Modo Entrevista iniciado — grabando audio completo');
+
+  } catch (err) {
+    console.error('Error iniciando entrevista:', err);
+    if (err.name === 'NotAllowedError') {
+      showToast('❌ Permiso de micrófono denegado.', 'error');
+    } else {
+      showToast('❌ Error al iniciar entrevista: ' + err.message, 'error');
+    }
+  }
+}
+
+function stopInterviewMode() {
+  if (!_interviewActive || !App.currentSession) return;
+
+  if (_interviewRecorder && _interviewRecorder.state !== 'inactive') {
+    _interviewRecorder.stop();
+  }
+
+  stopMicTranscription();
+
+  if (App.audioStream) {
+    App.audioStream.getTracks().forEach(t => t.stop());
+    App.audioStream = null;
+  }
+
+  if (App.audioContext) { App.audioContext.close(); App.audioContext = null; }
+  clearInterval(App.visualizerInterval);
+  document.querySelectorAll('#visualizerBars span').forEach(bar => bar.style.height = '5px');
+
+  const session = Storage.getSession(App.currentSession.id);
+  if (session) {
+    const duration = Date.now() - session.startedAt;
+    Storage.updateSession(session.id, { status: 'ended', endedAt: Date.now(), duration });
+  }
+
+  stopSessionTimer();
+  clearActiveSessionMeta();
+
+  const sessionId = App.currentSession.id;
+  App.currentSession = null;
+  App.isRecording = false;
+  _interviewActive = false;
+
+  _updateInterviewUI(false);
+  hideRecordingIndicator();
+  _offerInterviewDownload(sessionId);
+
+  showToast('✅ Entrevista terminada');
+}
+
+function _offerInterviewDownload(sessionId) {
+  if (!_interviewChunks.length) return;
+
+  const session = Storage.getSession(sessionId);
+  const title = session?.title || 'entrevista';
+  const mimeType = _interviewChunks[0]?.type || 'audio/webm';
+  const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(_interviewChunks, { type: mimeType });
+  const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+
+  const modal = document.getElementById('reportModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+
+  if (modal && modalTitle && modalBody) {
+    modalTitle.textContent = 'Entrevista Finalizada';
+    modalBody.innerHTML = `
+      <div style="text-align:center;padding:20px">
+        <i class="fas fa-check-circle" style="font-size:3rem;color:var(--success);margin-bottom:16px"></i>
+        <h3>Entrevista grabada correctamente</h3>
+        <p style="color:var(--text-secondary);margin:12px 0">
+          <strong>${escapeHtml(title)}</strong><br>
+          Audio: ${sizeMB} MB · Formato: ${ext.toUpperCase()}
+        </p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+          <button class="btn btn-primary" onclick="_downloadInterviewAudio('${sessionId}')">
+            <i class="fas fa-download"></i> Descargar Audio
+          </button>
+          <button class="btn btn-secondary" onclick="generateAISummary('${sessionId}')">
+            <i class="fas fa-robot"></i> Resumen IA
+          </button>
+          <button class="btn btn-secondary" onclick="closeModal()">
+            <i class="fas fa-times"></i> Cerrar
+          </button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'flex';
+  }
+}
+
+function _downloadInterviewAudio(sessionId) {
+  if (!_interviewChunks.length) { showToast('⚠️ No hay audio grabado', 'error'); return; }
+
+  const session = Storage.getSession(sessionId);
+  const title = (session?.title || 'entrevista').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  const mimeType = _interviewChunks[0]?.type || 'audio/webm';
+  const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+
+  const blob = new Blob(_interviewChunks, { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `entrevista-${title}-${Date.now()}.${ext}`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✅ Audio descargado (${(blob.size / (1024 * 1024)).toFixed(1)} MB)`);
+}
+
+function _updateInterviewUI(active) {
+  const interviewPanel = document.getElementById('interviewModePanel');
+  const normalControls = document.getElementById('normalMonitorControls');
+  const btnStart = document.getElementById('btnStartInterview');
+  const btnStop = document.getElementById('btnStopInterview');
+
+  if (active) {
+    if (interviewPanel) interviewPanel.style.display = 'block';
+    if (normalControls) normalControls.style.opacity = '0.4';
+    if (btnStart) btnStart.style.display = 'none';
+    if (btnStop) btnStop.style.display = 'inline-flex';
+  } else {
+    if (interviewPanel) interviewPanel.style.display = 'none';
+    if (normalControls) normalControls.style.opacity = '1';
+    if (btnStart) btnStart.style.display = 'inline-flex';
+    if (btnStop) btnStop.style.display = 'none';
+  }
+}

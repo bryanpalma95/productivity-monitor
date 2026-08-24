@@ -1,4 +1,18 @@
-﻿## [2.2.0] - 2026-08-20
+﻿## [2.3.0] - 2026-08-20
+
+### Added
+- **Modo Entrevista** — nuevo modo en la vista de Monitoreo para grabar entrevistas
+  o reuniones presenciales usando solo el microfono.
+  - Un clic para iniciar: pide permiso de mic, crea sesion, graba audio completo y
+    transcribe en paralelo con Groq Whisper cada 15s.
+  - Al terminar: muestra modal con opciones de descargar audio (.webm) y generar Resumen IA.
+  - No requiere compartir pantalla — ideal para uso desde el movil.
+  - El audio se mantiene en memoria RAM del navegador durante la grabacion.
+    Una entrevista de 1 hora ocupa ~30-60 MB (dentro de los limites del navegador).
+  - Las sesiones de entrevista se marcan con `interviewMode: true` para identificarlas.
+- Panel visual "Grabando entrevista..." con indicador pulsante mientras esta activo.
+- Boton "Iniciar Entrevista" con borde verde para diferenciarlo de la sesion normal.
+## [2.2.0] - 2026-08-20
 
 ### Added
 - **Selector de proveedor IA configurable** — nueva seccion en Mis Datos permite elegir
@@ -212,6 +226,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 
