@@ -1,4 +1,25 @@
-﻿## [2.3.0] - 2026-08-20
+﻿## [2.3.3] - 2026-08-20
+
+### Added
+- **Informe Detallado** — nuevo boton junto a "Resumen IA" en el modal de sesion.
+  Genera un informe exhaustivo con subsecciones por tema, campos tecnicos, escenarios,
+  reglas de negocio y tabla de flujos de integracion. Para sesiones largas extrae
+  600 palabras por chunk antes de consolidar.
+
+## [2.3.2] - 2026-08-20
+
+### Changed
+- **Prompt de resumen ejecutivo reescrito** — formato de sintesis priorizada:
+  titulo descriptivo, metricas, puntos clave con etiquetas (Decision/Accion/Riesgo/etc),
+  pendientes numerados, sin secciones vacias. Maximo 8 puntos, 1-2 oraciones cada uno.
+
+## [2.3.1] - 2026-08-20
+
+### Added
+- **Guia de onboarding** — modal de primera vez con 4 pasos: bienvenida, API keys,
+  como usar (sesion normal + modo entrevista), listo. Se marca como vista en localStorage.
+  Al finalizar navega automaticamente a Mis Datos para configurar.
+## [2.3.0] - 2026-08-20
 
 ### Added
 - **Modo Entrevista** — nuevo modo en la vista de Monitoreo para grabar entrevistas
@@ -226,6 +247,7 @@ Rama independiente desde productivity-monitor v3.2.0.
 ### Fixed
 - Resumen cortado a mitad por limite de tokens insuficiente
 - Copiar/descargar podia usar el resumen de otra sesion si se abrian dos modales
+
 
 
 
