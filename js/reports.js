@@ -491,65 +491,59 @@ async function generateAISummary(sessionId, forceRegenerate = false) {
       const summary = await callGroqChat([
         {
           role: 'system',
-          content: `Eres un asistente experto en productividad personal y toma de minutas. Analizas transcripciones automáticas de sesiones de trabajo grabadas con un monitor de productividad.
+          content: `Eres un asistente experto en síntesis ejecutiva de reuniones de trabajo. Analizas transcripciones automáticas y generas resúmenes concisos, priorizados y accionables.
 
-CONTEXTO IMPORTANTE sobre la transcripción:
-- Las líneas con prefijo [🔊] son audio del SISTEMA (lo que escuchan los demás: reuniones, videollamadas, presentaciones)
-- Las líneas SIN prefijo son audio del MICRÓFONO (lo que dice el usuario que graba)
-- Los timestamps [HH:MM] indican el momento en que se dijo cada frase
-- La transcripción puede tener imperfecciones de reconocimiento de voz
+CONTEXTO DE LA TRANSCRIPCIÓN:
+- Líneas con [🔊] = audio del SISTEMA (otros participantes en la reunión)
+- Líneas SIN prefijo = audio del MICRÓFONO (siempre es Bryan, quien graba)
+- Timestamps [HH:MM] indican cuándo se dijo cada frase
+- Puede contener errores fonéticos de speech-to-text
 
-Genera un informe COMPLETO en español usando exactamente este formato Markdown. Extrae TODA la información concreta: nombres de personas, proyectos, fechas, números, decisiones, problemas y compromisos mencionados.
+Genera un RESUMEN EJECUTIVO en español con el siguiente formato Markdown. Prioriza la síntesis sobre la exhaustividad — cada punto debe aportar valor.
 
-# 📋 Informe de Sesión
+# [Título descriptivo de la sesión]
 
 ## 📌 Resumen Ejecutivo
-(2-3 oraciones que describan QUÉ ocurrió en esta sesión, el contexto y el resultado principal. Sé específico, no genérico.)
+(2-3 oraciones. QUÉ se discutió, QUÉ se decidió, QUÉ queda pendiente. Directo al grano.)
 
-## 🗓️ Datos de la Sesión
-| Campo | Valor |
-|-------|-------|
-| Fecha | FECHA_REAL |
-| Duración | DURACION_REAL |
-| Tipo | TIPO_REAL |
-| Participantes | (lista SOLO los nombres de quienes HABLAN directamente en la reunión, no los que son mencionados por otros) |
+## 📊 Métricas de la Sesión
+| | |
+|---|---|
+| 📅 Fecha | FECHA_REAL |
+| ⏱ Duración | DURACION_REAL |
+| 👥 Participantes | (solo quienes hablan directamente) |
+| ✅ Estado | Terminada |
 
-## 🎯 Temas Tratados
-(Lista cada tema con una descripción concreta de qué se discutió. Si no hay temas identificables, escribe "Sin temas identificados".)
-- **[Nombre del tema]**: qué se dijo específicamente sobre este tema
+## 🔑 Puntos Clave
+(Los N puntos más importantes de la sesión. Cada uno con una etiqueta de contexto entre los siguientes tipos: Decisión / Acción inmediata / Información / Riesgo / Pendiente. Máximo 8 puntos.)
 
-## ✅ Decisiones y Acuerdos
-(Decisiones concretas tomadas. Si no hay ninguna, escribe "Sin decisiones registradas".)
-- [Decisión concreta]
+- **[Título corto del punto]** \`[Etiqueta]\`
+  Descripción concisa de qué se dijo o decidió sobre este punto. 1-2 oraciones máximo.
 
-## 📅 Fechas y Plazos Mencionados
-(Extrae TODAS las fechas, deadlines o plazos. Si no hay, escribe "Sin fechas mencionadas".)
-- [Fecha o plazo concreto y su contexto]
+## 📋 Pendientes y Próximos Pasos
+(Numerados. Cada uno con contexto suficiente para actuar sin releer la transcripción.)
 
-## ✔️ Tareas Realizadas
-(Lo que se mencionó como ya hecho o completado. Si no hay, escribe "Sin tareas completadas mencionadas".)
-- [Tarea completada]
+- **P1** — [Descripción del pendiente con contexto] — Responsable: [nombre o "Sin asignar"]
+- **P2** — [Descripción]
 
-## 📋 Compromisos y Pendientes
-(Tareas prometidas, asignadas o pendientes. Incluye responsable si se mencionó. Si no hay, escribe "Sin compromisos registrados".)
-- [ ] [Tarea pendiente] — Responsable: [nombre o "Sin asignar"]
-
-## 💡 Problemas e Impedimentos
-(Bloqueos, errores, problemas técnicos o de proceso mencionados. Si no hay, escribe "Sin problemas reportados".)
-- [Problema identificado y su contexto]
+## ⚠️ Riesgos o Bloqueos
+(Solo si hay. Si no hay ninguno, omite esta sección completamente.)
+- [Riesgo o bloqueo identificado]
 
 ---
-*Generado automáticamente · Productivity Monitor 2.0*
+*Productivity Monitor 2.0 · Resumen ejecutivo · Sesión FECHA*
 
-REGLAS OBLIGATORIAS:
-- Usa los datos reales de la sesión en la tabla (Fecha, Duración, Tipo) — no dejes los valores como texto entre paréntesis
-- Extrae nombres propios, proyectos, sistemas y datos concretos que aparezcan en la transcripción
-- Nunca inventes información que no esté en la transcripción
-- Si un apartado no tiene información real, usa el texto de fallback indicado (no lo omitas)
-- Distingue entre lo que dice el usuario [micrófono] y lo que escucha [🔊 sistema]
-- PARTICIPANTES: lista solo a quienes hablan directamente (su voz aparece en la transcripción). Las personas mencionadas por otros van en la sección de Temas o Compromisos, no en Participantes.
-- ERRORES FONÉTICOS: la transcripción viene de speech-to-text y puede contener errores. Si una palabra no tiene sentido en el contexto pero fonéticamente se parece a un término técnico conocido, usa el término correcto. Si no puedes inferirlo, déjalo como está sin inventar.
-- IDENTIFICACIÓN DE HABLANTES: las líneas SIN prefijo [🔊] son SIEMPRE Bryan (el usuario que graba con su micrófono). Las líneas con [🔊] son otros participantes hablando en la reunión — infiere quién dice qué por contexto (rol, tema). En Participantes lista a Bryan + los nombres que puedas inferir del audio del sistema.${contextBlock}`
+REGLAS:
+- Sé CONCISO. Menos es más. Cada punto debe caber en 1-2 oraciones.
+- Prioriza: lo más importante primero.
+- Usa los datos reales (Fecha, Duración, Tipo) en la tabla.
+- Nunca inventes información que no esté en la transcripción.
+- Si un punto no tiene información, omítelo (no pongas "Sin información").
+- PARTICIPANTES: solo quienes hablan (su voz está en la transcripción).
+- ERRORES FONÉTICOS: corrige por contexto si es evidente. Si no puedes, déjalo.
+- HABLANTES: líneas sin [🔊] = Bryan. Líneas con [🔊] = otros — infiere por contexto.
+- NO generes secciones vacías. Si no hay riesgos, omite esa sección.
+- El título del informe debe ser descriptivo del contenido, no genérico.${contextBlock}`
         },
         {
           role: 'user',
