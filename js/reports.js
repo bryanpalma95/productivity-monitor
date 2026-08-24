@@ -237,6 +237,11 @@ function generateReport() {
 
 // ===== Exportación Excel =====
 function exportReportExcel(sessionId) {
+  // Redirige a exportación Markdown
+  exportReportMarkdown(sessionId);
+}
+
+function exportReportMarkdown(sessionId) {
   const session = sessionId ? Storage.getSession(sessionId) : null;
   const sessions = session ? [session] : Storage.getSessions();
 
@@ -245,49 +250,56 @@ function exportReportExcel(sessionId) {
     return;
   }
 
-  // CSV con separador de punto y coma (compatible con Excel en español)
-  const rows = [
-    ['Título', 'Tipo', 'Inicio', 'Fin', 'Duración (min)', 'Transcripciones', 'Capturas', 'Estado']
-  ];
+  let md = `# Reporte de Productividad\n\nGenerado: ${formatDateTime(Date.now())}\n\n---\n\n`;
 
   sessions.forEach(s => {
-    rows.push([
-      s.title,
-      getTypeLabel(s.type),
-      formatDateTime(s.startedAt),
-      s.endedAt ? formatDateTime(s.endedAt) : 'Activa',
-      Math.round((s.duration || 0) / 60000),
-      s.transcripts ? s.transcripts.length : 0,
-      s.screenshots ? s.screenshots.length : 0,
-      s.status === 'active' ? 'Activa' : 'Terminada'
-    ]);
+    const transcripts = s.transcripts || [];
+    const screenshots = s.screenshots || [];
+
+    md += `## ${s.title}\n\n`;
+    md += `| Campo | Valor |\n|-------|-------|\n`;
+    md += `| Tipo | ${getTypeLabel(s.type)} |\n`;
+    md += `| Inicio | ${formatDateTime(s.startedAt)} |\n`;
+    md += `| Fin | ${s.endedAt ? formatDateTime(s.endedAt) : 'Activa'} |\n`;
+    md += `| Duración | ${formatDuration(s.duration || 0)} |\n`;
+    md += `| Transcripciones | ${transcripts.length} |\n`;
+    md += `| Capturas | ${screenshots.length} |\n`;
+    md += `| Estado | ${s.status === 'active' ? 'Activa' : 'Terminada'} |\n\n`;
+
+    if (transcripts.length > 0) {
+      md += `### Transcripción\n\n`;
+      transcripts.forEach(t => {
+        md += `- **[${formatTime(t.timestamp)}]** ${t.text}\n`;
+      });
+      md += `\n`;
+    }
+
+    if (s.aiSummary) {
+      md += `### Resumen IA (guardado)\n\n${s.aiSummary}\n\n`;
+    }
+
+    md += `---\n\n`;
   });
 
-  // Agregar transcripciones
-  rows.push([]);
-  rows.push(['=== TRANSCRIPCIONES ===']);
-  rows.push(['Sesión', 'Hora', 'Texto']);
+  md += `*Exportado desde Productivity Monitor 2.0*\n`;
 
-  sessions.forEach(s => {
-    (s.transcripts || []).forEach(t => {
-      rows.push([s.title, formatTime(t.timestamp), t.text]);
-    });
-  });
+  const title = session
+    ? (session.title || 'sesion').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+    : 'todas-las-sesiones';
 
-  const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `reporte-productividad-${Date.now()}.csv`;
+  a.download = `reporte-${title}-${Date.now()}.md`;
   a.click();
   URL.revokeObjectURL(url);
 
-  showToast('📊 Reporte Excel exportado');
+  showToast('📝 Reporte Markdown exportado');
 }
 
 function exportAllData() {
-  exportReportExcel(null);
+  exportReportMarkdown(null);
 }
 
 // ===== Exportación JSON =====

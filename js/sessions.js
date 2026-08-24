@@ -502,7 +502,7 @@ function viewSessionDetails(sessionId) {
           <i class="fas fa-file-pdf"></i> PDF
         </button>
         <button class="btn btn-secondary" onclick="exportReportExcel('${session.id}')">
-          <i class="fas fa-file-excel"></i> Excel
+          <i class="fas fa-file-alt"></i> Markdown
         </button>
         <button class="btn btn-secondary" onclick="exportScreenshots('${session.id}')">
           <i class="fas fa-images"></i> Capturas
